@@ -2,18 +2,19 @@ import { IHttp, IModify, IPersistence, IRead } from '@rocket.chat/apps-engine/de
 import { ISlashCommand, SlashCommandContext } from '@rocket.chat/apps-engine/definition/slashcommands';
 import defaultHeaders from '../lib/helpers/defaultHeaders';
 import { sendAttachmentNotification } from '../lib/helpers/sendAttachmentNotification';
+import { sendMediaMetadata } from '../lib/helpers/sendMediaMetadata';
 import { sendNotification } from '../lib/helpers/sendNotification';
-import { formatServerText } from '../lib/helpers/textFormatting';
+import { sendServerDetailsNotification } from '../lib/helpers/sendServerDetailsNotification';
+import { sendTokenExpired } from '../lib/helpers/sendTokenExpired';
 import { AppPersistence } from '../lib/persistence';
 import { PlexApp } from '../PlexApp';
-import { sendTokenExpired } from '../lib/helpers/sendTokenExpired';
-import { sendServerDetailsNotification } from '../lib/helpers/sendServerDetailsNotification';
 
 enum Command {
   Login = 'login',
   SetServers = 'set-servers',
   Servers = 'servers',
   Server = 'server',
+  Search = 'search',
 }
 
 export class PlexCommand implements ISlashCommand {
@@ -39,6 +40,9 @@ export class PlexCommand implements ISlashCommand {
         break;
       case Command.Server:
         await this.processServerCommand(context, read, modify, http, persis);
+        break;
+      case Command.Search:
+        await this.processSearchCommand(context, read, modify, http, persis);
         break;
     }
   }
@@ -335,8 +339,18 @@ export class PlexCommand implements ISlashCommand {
   }
 
   private async processSearchCommand(context: SlashCommandContext, read: IRead, modify: IModify, http: IHttp, persis: IPersistence): Promise<void> {
-    const [, serverArg, searchArg] = context.getArguments();
-    if (!serverArg || !searchArg) {
+    const args = context.getArguments();
+    if (args.length < 3) {
+      await sendNotification('Usage: `/plex search [SERVER NAME] [QUERY]`', read, modify, context.getSender(), context.getRoom());
+    }
+    const serverArg = args[1];
+    let searchArg = '';
+    // tslint:disable-next-line:prefer-for-of
+    for (let x = 2; x < args.length; x++) {
+      searchArg += args[x] + ' ';
+    }
+
+    if (!serverArg || searchArg === '') {
       await sendNotification('Usage: `/plex search [SERVER NAME] [QUERY]`', read, modify, context.getSender(), context.getRoom());
     } else {
       const persistence = new AppPersistence(persis, read.getPersistenceReader());
@@ -377,28 +391,19 @@ export class PlexCommand implements ISlashCommand {
                 if (response && response.statusCode === 200 && response.content) {
                   try {
                     const searchResultsJson = JSON.parse(response.content);
-                    let text = '';
                     if (searchResultsJson && searchResultsJson.MediaContainer && searchResultsJson.MediaContainer.size) {
                       text += '*Results *(' + searchResultsJson.MediaContainer.size + '):\n';
                       const actualResults = searchResultsJson.MediaContainer.Metadata;
-                      actualResults.forEach((searchResult) => {
-                        // TODO: 
-                        /* let url =
-                        text += searchResult.title + ' [' + searchResult.librarySectionTitle + '] (' + searchResult.type + ')';
-                        text += ' ' + searchResult. */
-                      });
+                      await sendNotification(text, read, modify, context.getSender(), context.getRoom());
+                      await sendMediaMetadata(serverChosen, actualResults, token, read, modify, context.getSender(), context.getRoom(), http);
                     }
                   } catch (e) {
                     await sendNotification('Failed to return search results!', read, modify, context.getSender(), context.getRoom());
                   }
                 }
-
-
               } else {
                 text = 'Server Name not found for query `' + serverArg + '`!';
               }
-
-              await sendNotification(text, read, modify, context.getSender(), context.getRoom());
             }
           } catch (e) {
             // tslint:disable-next-line:max-line-length

@@ -237,7 +237,7 @@ export class PlexCommand implements ISlashCommand {
     const servers = await persistence.getUserServers(context.getSender());
     if (!servers) {
       // tslint:disable-next-line:max-line-length
-      await sendNotification('No servers stored! Use the following command to set the servers: `/plex set-servers`', read, modify, context.getSender(), context.getRoom());
+      await sendNotification('No servers stored! Try logging in again: `/plex login [USERNAME] [PASSWORD]`', read, modify, context.getSender(), context.getRoom());
     } else {
       try {
         const serversList = JSON.parse(servers);
@@ -253,7 +253,7 @@ export class PlexCommand implements ISlashCommand {
             value: 'No Servers stored!',
             link: 'https://app.plex.tv/desktop#!/account',
           },
-          text: 'Use the following command to set the servers: `/plex set-servers`',
+          text: 'Try logging in again: `/plex login [USERNAME] [PASSWORD]`',
         }, read, modify, context.getSender(), context.getRoom());
       }
     }
@@ -268,7 +268,7 @@ export class PlexCommand implements ISlashCommand {
       const servers = await persistence.getUserServers(context.getSender());
       if (!servers) {
         // tslint:disable-next-line:max-line-length
-        await sendNotification('No servers stored! Use the following command to set the servers: `/plex set-servers`', read, modify, context.getSender(), context.getRoom());
+        await sendNotification('No servers stored! Try logging in again: `/plex login [USERNAME] [PASSWORD]`', read, modify, context.getSender(), context.getRoom());
       } else {
         try {
           let serverChosen;
@@ -337,7 +337,7 @@ export class PlexCommand implements ISlashCommand {
         const servers = await persistence.getUserServers(context.getSender());
         if (!servers) {
           // tslint:disable-next-line:max-line-length
-          await sendNotification('No servers stored! Use the following command to set the servers: `/plex set-servers`', read, modify, context.getSender(), context.getRoom());
+          await sendNotification('No servers stored! Try logging in again: `/plex login [USERNAME] [PASSWORD]`', read, modify, context.getSender(), context.getRoom());
         } else {
           try {
             let serverChosen;

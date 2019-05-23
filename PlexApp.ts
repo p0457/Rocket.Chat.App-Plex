@@ -25,7 +25,7 @@ export class PlexApp extends App {
       await configuration.settings.provideSetting({
         id: 'plex_icon',
         type: SettingType.STRING,
-        packageValue: 'https://raw.githubusercontent.com/tgardner851/Rocket.Chat.App-plex/master/icon.jpg',
+        packageValue: 'https://github.com/tgardner851/Rocket.Chat.App-Plex/raw/master/icon.png',
         required: true,
         public: false,
         i18nLabel: 'customize_icon',

@@ -1,10 +1,13 @@
 import { IHttp, IModify, IPersistence, IRead } from '@rocket.chat/apps-engine/definition/accessors';
 import { ISlashCommand, SlashCommandContext } from '@rocket.chat/apps-engine/definition/slashcommands';
 import defaultHeaders from '../lib/helpers/defaultHeaders';
+import { sendAttachmentNotification } from '../lib/helpers/sendAttachmentNotification';
 import { sendNotification } from '../lib/helpers/sendNotification';
 import { formatServerText } from '../lib/helpers/textFormatting';
 import { AppPersistence } from '../lib/persistence';
 import { PlexApp } from '../PlexApp';
+import { sendTokenExpired } from '../lib/helpers/sendTokenExpired';
+import { sendServerDetailsNotification } from '../lib/helpers/sendServerDetailsNotification';
 
 enum Command {
   Login = 'login',
@@ -28,15 +31,15 @@ export class PlexCommand implements ISlashCommand {
       case Command.Login:
         await this.processLoginCommand(context, read, modify, http, persis);
         break;
-        case Command.SetServers:
-          await this.processSetServersCommand(context, read, modify, http, persis);
-          break;
-          case Command.Servers:
-            await this.processServersCommand(context, read, modify, http, persis);
-            break;
-          case Command.Server:
-            await this.processServerCommand(context, read, modify, http, persis);
-            break;
+      case Command.SetServers:
+        await this.processSetServersCommand(context, read, modify, http, persis);
+        break;
+      case Command.Servers:
+        await this.processServersCommand(context, read, modify, http, persis);
+        break;
+      case Command.Server:
+        await this.processServerCommand(context, read, modify, http, persis);
+        break;
     }
   }
 
@@ -68,12 +71,37 @@ export class PlexCommand implements ISlashCommand {
         await persistence.setUserId(userId, context.getSender());
         await persistence.setUserUuid(userUuid, context.getSender());
         await persistence.setUserThumb(userThumbUrl, context.getSender());
-        await sendNotification('Successfully logged in and stored your Plex Token!', read, modify, context.getSender(), context.getRoom());
+        await sendAttachmentNotification({
+          collapsed: true,
+          color: '#00CE00',
+          thumbnailUrl: userThumbUrl,
+          title: {
+            value: 'Logged in!',
+            link: 'https://app.plex.tv/desktop#!/account',
+          },
+          text: '*Id: *' + userId + '\n*Uuid: *' + userUuid + '\n*Token: *' + token,
+        }, read, modify, context.getSender(), context.getRoom());
       } else {
-        await sendNotification('Failed to detect your Plex Token!', read, modify, context.getSender(), context.getRoom());
+        await sendAttachmentNotification({
+          collapsed: false,
+          color: '#e10000',
+          title: {
+            value: 'Login Failed!',
+            link: 'https://app.plex.tv/desktop#!/account',
+          },
+          text: 'Failed to detect your Plex Token!',
+        }, read, modify, context.getSender(), context.getRoom());
       }
     } else {
-      await sendNotification('Failed to login to Plex!', read, modify, context.getSender(), context.getRoom());
+      await sendAttachmentNotification({
+        collapsed: false,
+        color: '#e10000',
+        title: {
+          value: 'Login Failed!',
+          link: 'https://app.plex.tv/desktop#!/account',
+        },
+        text: 'Failed login to Plex!',
+      }, read, modify, context.getSender(), context.getRoom());
     }
   }
 
@@ -90,12 +118,11 @@ export class PlexCommand implements ISlashCommand {
       const response = await http.get(url, {headers});
       if (response) {
         if (response.statusCode === 401) {
-          // tslint:disable-next-line:max-line-length
-          await sendNotification('Plex Token has expired! Please login again using `/plex login [USERNAME] [PASSWORD]`', read, modify, context.getSender(), context.getRoom());
+          await sendTokenExpired(read, modify, context.getSender(), context.getRoom(), persis);
         } else if (response.statusCode === 200 && response.content) {
+          const userThumbUrl = await persistence.getUserThumb(context.getSender());
           try {
             const content = response.content;
-            // console.log('****1', content);
             const regex = new RegExp('(?<=<Server )(.*?)(?=\/>)', 'gm');
 
             const servers = new Array<string>();
@@ -189,7 +216,7 @@ export class PlexCommand implements ISlashCommand {
               }
 
               const serverObj = {
-                accessToken, name, address, port, version, scheme, sourceTitle, ownerId, owned, machineId, 
+                accessToken, name, address, port, version, scheme, sourceTitle, ownerId, owned, machineId,
               };
 
               serversObj.push(serverObj);
@@ -198,10 +225,27 @@ export class PlexCommand implements ISlashCommand {
 
             await persistence.setServers(jsonServersObj, context.getSender());
 
-            await sendNotification('Successfully set servers. To see servers, run `/plex servers`', read, modify, context.getSender(), context.getRoom());
+            await sendAttachmentNotification({
+              collapsed: true,
+              color: '#00CE00',
+              thumbnailUrl: userThumbUrl,
+              title: {
+                value: 'Successfully Set Servers!',
+                link: 'https://app.plex.tv/desktop#!/account',
+              },
+              text: 'To see servers, run `/plex servers`',
+            }, read, modify, context.getSender(), context.getRoom());
           } catch (e) {
             console.error('Failed to parse servers!', e);
-            await sendNotification('Failed to parse servers!', read, modify, context.getSender(), context.getRoom());
+            await sendAttachmentNotification({
+              collapsed: false,
+              color: '#e10000',
+              title: {
+                value: 'Failed to Set Servers!',
+                link: 'https://app.plex.tv/desktop#!/account',
+              },
+              text: 'Failed to parse return from API.',
+            }, read, modify, context.getSender(), context.getRoom());
           }
         }
       }
@@ -218,17 +262,21 @@ export class PlexCommand implements ISlashCommand {
       try {
         const serversList = JSON.parse(servers);
         if (serversList && Array.isArray(serversList)) {
-          let text = '';
-          serversList.forEach((server) => {
-            text += formatServerText(server);
+          const userThumbUrl = await persistence.getUserThumb(context.getSender());
+          serversList.forEach(async (server) => {
+            await sendServerDetailsNotification(server, userThumbUrl, read, modify, context.getSender(), context.getRoom());
           });
-
-          // tslint:disable-next-line:max-line-length
-          await sendNotification(text, read, modify, context.getSender(), context.getRoom());
         }
       } catch (e) {
-        // tslint:disable-next-line:max-line-length
-        await sendNotification('No servers stored! Use the following command to set the servers: `/plex set-servers`', read, modify, context.getSender(), context.getRoom());
+        await sendAttachmentNotification({
+          collapsed: false,
+          color: '#e10000',
+          title: {
+            value: 'No Servers stored!',
+            link: 'https://app.plex.tv/desktop#!/account',
+          },
+          text: 'Use the following command to set the servers: `/plex set-servers`',
+        }, read, modify, context.getSender(), context.getRoom());
       }
     }
   }
@@ -256,19 +304,31 @@ export class PlexCommand implements ISlashCommand {
               }
             });
 
-            let text = '';
             if (serverFound && serverFound === true) {
-              text = '*Query:* `' + serverArg + '`\n*Result:* ';
-              text += formatServerText(serverChosen, false);
+              const userThumbUrl = await persistence.getUserThumb(context.getSender());
+              await sendServerDetailsNotification(serverChosen, userThumbUrl, read, modify, context.getSender(), context.getRoom());
             } else {
-              text = 'Server Name not found for query `' + serverArg + '`!';
+              await sendAttachmentNotification({
+                collapsed: false,
+                color: '#e10000',
+                title: {
+                  value: 'No Servers found!',
+                  link: 'https://app.plex.tv/desktop#!/account',
+                },
+                text: 'Could not find a server using the query `' + serverArg + '`!',
+              }, read, modify, context.getSender(), context.getRoom());
             }
-
-            await sendNotification(text, read, modify, context.getSender(), context.getRoom());
           }
         } catch (e) {
-          // tslint:disable-next-line:max-line-length
-          await sendNotification('Error searching for server!', read, modify, context.getSender(), context.getRoom());
+          await sendAttachmentNotification({
+            collapsed: false,
+            color: '#e10000',
+            title: {
+              value: 'Failed to search for Server!',
+              link: 'https://app.plex.tv/desktop#!/account',
+            },
+            text: 'Error encountered when searching for server!',
+          }, read, modify, context.getSender(), context.getRoom());
         }
       }
     }

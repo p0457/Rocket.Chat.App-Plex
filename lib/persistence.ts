@@ -68,4 +68,20 @@ export class AppPersistence {
 
     return result ? (result as any).uuid : undefined;
   }
+
+  public async setServers(servers: string, user: IUser): Promise<void> {
+    const userAssociation = new RocketChatAssociationRecord(RocketChatAssociationModel.USER, user.id);
+    const typeAssociation = new RocketChatAssociationRecord(RocketChatAssociationModel.MISC, 'plex-user-servers');
+
+    await this.persistence.updateByAssociations([userAssociation, typeAssociation], { servers }, true);
+  }
+
+  public async getUserServers(user: IUser): Promise<string | undefined> {
+    const userAssociation = new RocketChatAssociationRecord(RocketChatAssociationModel.USER, user.id);
+    const typeAssociation = new RocketChatAssociationRecord(RocketChatAssociationModel.MISC, 'plex-user-servers');
+
+    const [result] = await this.persistenceRead.readByAssociations([userAssociation, typeAssociation]);
+
+    return result ? (result as any).servers : undefined;
+  }
 }

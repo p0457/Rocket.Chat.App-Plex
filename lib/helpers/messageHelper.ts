@@ -95,7 +95,7 @@ export async function sendNotificationMultipleServerDetails(servers, userThumbUr
   await sendNotificationMultipleAttachments(attachments, read, modify, user, room);
 }
 
-export async function sendMediaMetadata(server, metadatas, query, token: string, read: IRead, modify: IModify, user: IUser, room: IRoom, http: IHttp): Promise<void> {
+export async function sendMediaMetadata(server, metadatas, query, read: IRead, modify: IModify, user: IUser, room: IRoom, http: IHttp): Promise<void> {
   const attachments = new Array<IMessageAttachment>();
   // Initial attachment for results count
   attachments.push({

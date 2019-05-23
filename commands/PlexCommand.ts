@@ -181,8 +181,15 @@ export class PlexCommand implements ISlashCommand {
                 }
               }
 
+              const machineIdRegex = new RegExp('machineIdentifier="(.*?)"', 'gm');
+              const machineIdResult = machineIdRegex.exec(server);
+              let machineId;
+              if (machineIdResult && machineIdResult.length >= 2) {
+                machineId = machineIdResult[1];
+              }
+
               const serverObj = {
-                accessToken, name, address, port, version, scheme, sourceTitle, ownerId, owned,
+                accessToken, name, address, port, version, scheme, sourceTitle, ownerId, owned, machineId, 
               };
 
               serversObj.push(serverObj);
@@ -262,6 +269,81 @@ export class PlexCommand implements ISlashCommand {
         } catch (e) {
           // tslint:disable-next-line:max-line-length
           await sendNotification('Error searching for server!', read, modify, context.getSender(), context.getRoom());
+        }
+      }
+    }
+  }
+
+  private async processSearchCommand(context: SlashCommandContext, read: IRead, modify: IModify, http: IHttp, persis: IPersistence): Promise<void> {
+    const [, serverArg, searchArg] = context.getArguments();
+    if (!serverArg || !searchArg) {
+      await sendNotification('Usage: `/plex search [SERVER NAME] [QUERY]`', read, modify, context.getSender(), context.getRoom());
+    } else {
+      const persistence = new AppPersistence(persis, read.getPersistenceReader());
+
+      const token = await persistence.getUserToken(context.getSender());
+      if (!token) {
+        // tslint:disable-next-line:max-line-length
+        await sendNotification('No token detected! Please login first using `/plex login [USERNAME] [PASSWORD]`', read, modify, context.getSender(), context.getRoom());
+      } else {
+        const servers = await persistence.getUserServers(context.getSender());
+        if (!servers) {
+          // tslint:disable-next-line:max-line-length
+          await sendNotification('No servers stored! Use the following command to set the servers: `/plex set-servers`', read, modify, context.getSender(), context.getRoom());
+        } else {
+          try {
+            let serverChosen;
+            let serverFound = false;
+            const serversList = JSON.parse(servers);
+            if (serversList && Array.isArray(serversList)) {
+              serversList.forEach((server) => {
+                if (!serverFound && server.name.toLowerCase().indexOf(serverArg.toLowerCase()) !== -1) {
+                  serverChosen = server;
+                  serverFound = true;
+                }
+              });
+
+              let text = '';
+              if (serverFound && serverFound === true) {
+                const url = serverChosen.scheme + '://' + serverChosen.address + ':' + serverChosen.port + '/search';
+                const headers = defaultHeaders;
+                headers['X-Plex-Token'] = token;
+                const response = await http.get(url, {
+                  headers,
+                  params: {
+                    query: searchArg,
+                  },
+                });
+                if (response && response.statusCode === 200 && response.content) {
+                  try {
+                    const searchResultsJson = JSON.parse(response.content);
+                    let text = '';
+                    if (searchResultsJson && searchResultsJson.MediaContainer && searchResultsJson.MediaContainer.size) {
+                      text += '*Results *(' + searchResultsJson.MediaContainer.size + '):\n';
+                      const actualResults = searchResultsJson.MediaContainer.Metadata;
+                      actualResults.forEach((searchResult) => {
+                        // TODO: 
+                        /* let url =
+                        text += searchResult.title + ' [' + searchResult.librarySectionTitle + '] (' + searchResult.type + ')';
+                        text += ' ' + searchResult. */
+                      });
+                    }
+                  } catch (e) {
+                    await sendNotification('Failed to return search results!', read, modify, context.getSender(), context.getRoom());
+                  }
+                }
+
+
+              } else {
+                text = 'Server Name not found for query `' + serverArg + '`!';
+              }
+
+              await sendNotification(text, read, modify, context.getSender(), context.getRoom());
+            }
+          } catch (e) {
+            // tslint:disable-next-line:max-line-length
+            await sendNotification('Error searching for server!', read, modify, context.getSender(), context.getRoom());
+          }
         }
       }
     }

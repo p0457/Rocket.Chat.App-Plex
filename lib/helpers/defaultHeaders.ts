@@ -7,4 +7,5 @@ export default {
   'X-Plex-Version': 'TODO',
   'X-Plex-Device': 'Rocket.Chat.App.Rocket.Chat.App-Plex',
   'X-Plex-Device-Name': 'Rocket.Chat.App',
+  'Accept': 'application/json',
 };

@@ -400,9 +400,11 @@ export class PlexCommand implements ISlashCommand {
                   } catch (e) {
                     await sendNotification('Failed to return search results!', read, modify, context.getSender(), context.getRoom());
                   }
+                } else if (response.statusCode === 400) {
+                  await sendTokenExpired(read, modify, context.getSender(), context.getRoom(), persis);
                 }
               } else {
-                text = 'Server Name not found for query `' + serverArg + '`!';
+                await sendNotification('Server Name not found for query `' + serverArg + '`!', read, modify, context.getSender(), context.getRoom());
               }
             }
           } catch (e) {

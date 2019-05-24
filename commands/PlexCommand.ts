@@ -6,6 +6,7 @@ import { AppPersistence } from '../lib/persistence';
 import { PlexApp } from '../PlexApp';
 
 enum Command {
+  Help = 'help',
   Login = 'login',
   Servers = 'servers',
   Server = 'server',
@@ -24,6 +25,9 @@ export class PlexCommand implements ISlashCommand {
     const [command] = context.getArguments();
 
     switch (command) {
+      case Command.Help:
+        await this.processHelpCommand(context, read, modify, http, persis);
+        break;
       case Command.Login:
         await this.processLoginCommand(context, read, modify, http, persis);
         break;
@@ -36,7 +40,26 @@ export class PlexCommand implements ISlashCommand {
       case Command.Search:
         await this.processSearchCommand(context, read, modify, http, persis);
         break;
+      default:
+        await this.processHelpCommand(context, read, modify, http, persis);
+        break;
     }
+  }
+
+  private async processHelpCommand(context: SlashCommandContext, read: IRead, modify: IModify, http: IHttp, persis: IPersistence): Promise<void> {
+    await msgHelper.sendNotificationSingleAttachment({
+      collapsed: false,
+      color: '#e4a00e',
+      title: {
+        value: 'Plex App Help Commands',
+      },
+      text: '`/plex help`\n>Show this help menu\n'
+        + '`/plex login [USERNAME] [PASSWORD]`\n>Login to Plex\n'
+        + '`/plex servers`\n>Show all Plex Media Servers authorized to your Plex account\n'
+        + '`/plex server [SERVER NAME]`\n>Search for a Plex Server authorized to your Plex account by name\n'
+        + '`/plex search [SERVER NAME] [QUERY]`\n>Search for media using the Plex Server name provided (can be a partial name)\n',
+    }, read, modify, context.getSender(), context.getRoom());
+    return;
   }
 
   private async processLoginCommand(context: SlashCommandContext, read: IRead, modify: IModify, http: IHttp, persis: IPersistence): Promise<void> {

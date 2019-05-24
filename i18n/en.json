@@ -3,6 +3,6 @@
   "customize_name_description": "Choose the username that this app will post as.",
   "customize_icon": "Customize Icon",
   "customize_icon_description": "Choose the icon that is used for messages from this app.",
-  "slashcommand_params": "login [USERNAME] [PASSWORD], servers, server [SERVER NAME], search [SERVER NAME] [QUERY]",
-  "slashcommand_description": "Interacts with a Plex Server through the API."
+  "slashcommand_params": "help",
+  "slashcommand_description": "Shows all Plex App commands"
 }

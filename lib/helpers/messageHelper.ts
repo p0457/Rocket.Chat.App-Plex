@@ -399,3 +399,59 @@ export async function sendMediaMetadata(server, metadatas, query, read: IRead, m
 
   await sendNotificationMultipleAttachments(attachments, read, modify, user, room);
 }
+
+export async function sendDevices(devices, read: IRead, modify: IModify, user: IUser, room: IRoom): Promise<void> {
+  const attachments = new Array<IMessageAttachment>();
+  // Initial attachment for results count
+  attachments.push({
+    collapsed: false,
+    color: '#00CE00',
+    title: {
+      value: 'Results (' + devices.length + ')',
+    },
+  });
+
+  // tslint:disable-next-line:prefer-for-of
+  for (let x = 0; x < devices.length; x++) {
+    const device = devices[x];
+
+    const fields = new Array();
+
+    // Wanted to do actions for request, but can't pass tokens or headers, just urls...
+    // TODO: Revisit when the API has matured and allows for complex HTTP requests with Bearer * headers.
+    const actions = new Array<IMessageAction>();
+
+    // let text = '';
+
+    fields.push({
+      short: true,
+      title: 'Product',
+      value: device.product,
+    });
+    fields.push({
+      short: true,
+      title: 'Version',
+      value: device.version,
+    });
+    fields.push({
+      short: true,
+      title: 'Last Seen',
+      value: device.lastSeenDateDisplay,
+    });
+
+    attachments.push({
+      collapsed: false,
+      color: '#e4a00e',
+      title: {
+        value: device.name + ' (' + device.id + ')',
+        link: 'https://app.plex.tv/desktop#!/settings/devices/all',
+      },
+      actions,
+      actionButtonsAlignment: MessageActionButtonsAlignment.HORIZONTAL,
+      fields,
+      // text,
+    });
+  }
+
+  await sendNotificationMultipleAttachments(attachments, read, modify, user, room);
+}

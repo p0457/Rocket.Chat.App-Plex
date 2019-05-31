@@ -13,6 +13,7 @@ enum Command {
   Server = 'server',
   Search = 'search',
   MediaTypes = 'mediatypes',
+  OnDeck = 'on-deck',
 }
 
 export class PlexCommand implements ISlashCommand {
@@ -45,6 +46,9 @@ export class PlexCommand implements ISlashCommand {
       case Command.MediaTypes:
         await this.processMediaTypesCommand(context, read, modify, http, persis);
         break;
+      case Command.OnDeck:
+        await this.processOnDeckCommand(context, read, modify, http, persis);
+        break;
       default:
         await this.processHelpCommand(context, read, modify, http, persis);
         break;
@@ -63,7 +67,8 @@ export class PlexCommand implements ISlashCommand {
         + '`/plex servers`\n>Show all Plex Media Servers authorized to your Plex account\n'
         + '`/plex server [SERVER NAME]`\n>Search for a Plex Server authorized to your Plex account by name\n'
         // tslint:disable-next-line:max-line-length
-        + '`/plex search [SERVER NAME] [MEDIA TYPE] [QUERY]`\n>Search for media using the Plex Server name provided (can be a partial name)\n',
+        + '`/plex search [SERVER NAME] (mediatype) [QUERY]`\n>Search for media using the Plex Server name provided (can be a partial name)\n'
+        + '`/plex on-deck`\n>Shows what is On Deck using the Plex Server name provided (can be a partial name)\n',
     }, read, modify, context.getSender(), context.getRoom());
     return;
   }
@@ -307,51 +312,51 @@ export class PlexCommand implements ISlashCommand {
     const [, serverArg] = context.getArguments();
     if (!serverArg) {
       await msgHelper.sendNotification('Usage: `/plex server [SERVER NAME]`', read, modify, context.getSender(), context.getRoom());
+      return;
+    }
+    const persistence = new AppPersistence(persis, read.getPersistenceReader());
+    const servers = await persistence.getUserServers(context.getSender());
+    if (!servers) {
+      // tslint:disable-next-line:max-line-length
+      await msgHelper.sendNotification('No servers stored! Try logging in again: `/plex login [USERNAME] [PASSWORD]`', read, modify, context.getSender(), context.getRoom());
     } else {
-      const persistence = new AppPersistence(persis, read.getPersistenceReader());
-      const servers = await persistence.getUserServers(context.getSender());
-      if (!servers) {
-        // tslint:disable-next-line:max-line-length
-        await msgHelper.sendNotification('No servers stored! Try logging in again: `/plex login [USERNAME] [PASSWORD]`', read, modify, context.getSender(), context.getRoom());
-      } else {
-        try {
-          let serverChosen;
-          let serverFound = false;
-          const serversList = JSON.parse(servers);
-          if (serversList && Array.isArray(serversList)) {
-            serversList.forEach((server) => {
-              if (!serverFound && server.name.toLowerCase().indexOf(serverArg.toLowerCase()) !== -1) {
-                serverChosen = server;
-                serverFound = true;
-              }
-            });
-
-            if (serverFound && serverFound === true) {
-              const userThumbUrl = await persistence.getUserThumb(context.getSender());
-              await msgHelper.sendNotificationSingleServerDetails(serverChosen, userThumbUrl, read, modify, context.getSender(), context.getRoom());
-            } else {
-              await msgHelper.sendNotificationSingleAttachment({
-                collapsed: false,
-                color: '#e10000',
-                title: {
-                  value: 'No Servers found!',
-                  link: 'https://app.plex.tv/desktop#!/account',
-                },
-                text: 'Could not find a server using the query `' + serverArg + '`!',
-              }, read, modify, context.getSender(), context.getRoom());
+      try {
+        let serverChosen;
+        let serverFound = false;
+        const serversList = JSON.parse(servers);
+        if (serversList && Array.isArray(serversList)) {
+          serversList.forEach((server) => {
+            if (!serverFound && server.name.toLowerCase().indexOf(serverArg.toLowerCase()) !== -1) {
+              serverChosen = server;
+              serverFound = true;
             }
+          });
+
+          if (serverFound && serverFound === true) {
+            const userThumbUrl = await persistence.getUserThumb(context.getSender());
+            await msgHelper.sendNotificationSingleServerDetails(serverChosen, userThumbUrl, read, modify, context.getSender(), context.getRoom());
+          } else {
+            await msgHelper.sendNotificationSingleAttachment({
+              collapsed: false,
+              color: '#e10000',
+              title: {
+                value: 'No Servers found!',
+                link: 'https://app.plex.tv/desktop#!/account',
+              },
+              text: 'Could not find a server using the query `' + serverArg + '`!',
+            }, read, modify, context.getSender(), context.getRoom());
           }
-        } catch (e) {
-          await msgHelper.sendNotificationSingleAttachment({
-            collapsed: false,
-            color: '#e10000',
-            title: {
-              value: 'Failed to search for Server!',
-              link: 'https://app.plex.tv/desktop#!/account',
-            },
-            text: 'Error encountered when searching for server!',
-          }, read, modify, context.getSender(), context.getRoom());
         }
+      } catch (e) {
+        await msgHelper.sendNotificationSingleAttachment({
+          collapsed: false,
+          color: '#e10000',
+          title: {
+            value: 'Failed to search for Server!',
+            link: 'https://app.plex.tv/desktop#!/account',
+          },
+          text: 'Error encountered when searching for server!',
+        }, read, modify, context.getSender(), context.getRoom());
       }
     }
   }
@@ -360,36 +365,36 @@ export class PlexCommand implements ISlashCommand {
     const args = context.getArguments();
     if (args.length < 4) {
       // tslint:disable-next-line:max-line-length
-      await msgHelper.sendNotification('Usage: `/plex search [SERVER NAME] [MEDIA TYPE] [QUERY]`', read, modify, context.getSender(), context.getRoom());
+      await msgHelper.sendNotification('Usage: `/plex search [SERVER NAME] (mediatype) [QUERY]`', read, modify, context.getSender(), context.getRoom());
       return ;
     }
     const serverArg = args[1];
     const typeArg = args[2].toLowerCase().trim();
     // tslint:disable-next-line:max-line-length
-    if (!typeArg || (typeArg && typeArg !== 'movie' && typeArg !== 'show' && typeArg !== 'episode' && typeArg !== 'artist' && typeArg !== 'album' && typeArg !== 'track')) {
+    if (!typeArg) {
       // tslint:disable-next-line:max-line-length
-      await msgHelper.sendNotification('Usage: `/plex search [SERVER NAME] [MEDIA TYPE] [QUERY]`', read, modify, context.getSender(), context.getRoom());
+      await msgHelper.sendNotification('Usage: `/plex search [SERVER NAME] (mediatype) [QUERY]`', read, modify, context.getSender(), context.getRoom());
       return;
     }
     const type = getMediaTypes().find((mediaType) => {
       return mediaType.typeString === typeArg;
     });
+    let searchIndex = 3;
     if (!type) {
-      // tslint:disable-next-line:max-line-length
-      await msgHelper.sendNotification('Invalid type!\nUsage: `/plex search [SERVER NAME] [MEDIA TYPE] [QUERY]`', read, modify, context.getSender(), context.getRoom());
-      return;
+      // Bad type accepted, search defaults
+      searchIndex = 2;
     }
 
     let searchArg = '';
     // tslint:disable-next-line:prefer-for-of
-    for (let x = 3; x < args.length; x++) {
+    for (let x = searchIndex; x < args.length; x++) {
       searchArg += args[x] + ' ';
     }
     searchArg = searchArg.trim();
 
     if (!serverArg || searchArg === '') {
       // tslint:disable-next-line:max-line-length
-      await msgHelper.sendNotification('Usage: `/plex search [SERVER NAME] [MEDIA TYPE] [QUERY]`', read, modify, context.getSender(), context.getRoom());
+      await msgHelper.sendNotification('Usage: `/plex search [SERVER NAME] (mediatype) [QUERY]`', read, modify, context.getSender(), context.getRoom());
       return;
     }
 
@@ -421,16 +426,17 @@ export class PlexCommand implements ISlashCommand {
               const url = serverChosen.scheme + '://' + serverChosen.address + ':' + serverChosen.port + '/search';
               const headers = defaultHeaders;
               headers['X-Plex-Token'] = token;
+              const defaultTypes = '1,2,8,9,11,14'; // movie,show,artist,album,photoAlbum,clip
               const response = await http.get(url, {
                 headers,
                 params: {
                   query: searchArg,
-                  type: type.id.toString(),
+                  type: (type && type.id) ? type.id.toString() : defaultTypes,
                 },
               });
               if (response && response.statusCode === 200 && response.content) {
                 try {
-                  const queryDisplay = typeArg + ' ' + searchArg;
+                  const queryDisplay = (type ? typeArg + ' ' : 'all ') + searchArg;
                   const searchResultsJson = JSON.parse(response.content);
                   if (searchResultsJson && searchResultsJson.MediaContainer && searchResultsJson.MediaContainer.size) {
                     const actualResults = searchResultsJson.MediaContainer.Metadata;
@@ -444,6 +450,77 @@ export class PlexCommand implements ISlashCommand {
                   } else {
                     // tslint:disable-next-line:max-line-length
                     await msgHelper.sendMediaMetadata(serverChosen, [], queryDisplay, read, modify, context.getSender(), context.getRoom());
+                  }
+                } catch (e) {
+                  console.log('Failed to return search results!', e);
+                  await msgHelper.sendNotification('Failed to return search results!', read, modify, context.getSender(), context.getRoom());
+                }
+              } else if (response.statusCode === 400) {
+                await msgHelper.sendTokenExpired(read, modify, context.getSender(), context.getRoom(), persis);
+              }
+            } else {
+              await msgHelper.sendNotification('Server Name not found for query `' + serverArg + '`!', read, modify, context.getSender(), context.getRoom());
+            }
+          }
+        } catch (e) {
+          // tslint:disable-next-line:max-line-length
+          await msgHelper.sendNotification('Error searching for server!', read, modify, context.getSender(), context.getRoom());
+        }
+      }
+    }
+  }
+
+  private async processOnDeckCommand(context: SlashCommandContext, read: IRead, modify: IModify, http: IHttp, persis: IPersistence): Promise<void> {
+    const [, serverArg] = context.getArguments();
+    if (!serverArg) {
+      await msgHelper.sendNotification('Usage: `/plex on-deck [SERVER NAME]`', read, modify, context.getSender(), context.getRoom());
+      return;
+    }
+
+    const persistence = new AppPersistence(persis, read.getPersistenceReader());
+
+    const token = await persistence.getUserToken(context.getSender());
+    if (!token) {
+      // tslint:disable-next-line:max-line-length
+      await msgHelper.sendNotification('No token detected! Please login first using `/plex login [USERNAME] [PASSWORD]`', read, modify, context.getSender(), context.getRoom());
+    } else {
+      const servers = await persistence.getUserServers(context.getSender());
+      if (!servers) {
+        // tslint:disable-next-line:max-line-length
+        await msgHelper.sendNotification('No servers stored! Try logging in again: `/plex login [USERNAME] [PASSWORD]`', read, modify, context.getSender(), context.getRoom());
+      } else {
+        try {
+          let serverChosen;
+          let serverFound = false;
+          const serversList = JSON.parse(servers);
+          if (serversList && Array.isArray(serversList)) {
+            serversList.forEach((server) => {
+              if (!serverFound && server.name.toLowerCase().indexOf(serverArg.toLowerCase()) !== -1) {
+                serverChosen = server;
+                serverFound = true;
+              }
+            });
+
+            if (serverFound && serverFound === true) {
+              const url = serverChosen.scheme + '://' + serverChosen.address + ':' + serverChosen.port + '/library/onDeck';
+              const headers = defaultHeaders;
+              headers['X-Plex-Token'] = token;
+              const response = await http.get(url, {headers});
+              if (response && response.statusCode === 200 && response.content) {
+                try {
+                  const searchResultsJson = JSON.parse(response.content);
+                  if (searchResultsJson && searchResultsJson.MediaContainer && searchResultsJson.MediaContainer.size) {
+                    const actualResults = searchResultsJson.MediaContainer.Metadata;
+                    if (actualResults && actualResults.length > 0) {
+                      // tslint:disable-next-line:max-line-length
+                      await msgHelper.sendMediaMetadata(serverChosen, actualResults, 'on-deck', read, modify, context.getSender(), context.getRoom());
+                    } else {
+                      // tslint:disable-next-line:max-line-length
+                      await msgHelper.sendMediaMetadata(serverChosen, [], 'on-deck', read, modify, context.getSender(), context.getRoom());
+                    }
+                  } else {
+                    // tslint:disable-next-line:max-line-length
+                    await msgHelper.sendMediaMetadata(serverChosen, [], 'on-deck', read, modify, context.getSender(), context.getRoom());
                   }
                 } catch (e) {
                   console.log('Failed to return search results!', e);

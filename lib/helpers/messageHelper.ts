@@ -1,5 +1,5 @@
-import { IHttp, IModify, IPersistence, IRead } from '@rocket.chat/apps-engine/definition/accessors';
-import { IMessageAttachment } from '@rocket.chat/apps-engine/definition/messages';
+import { IModify, IPersistence, IRead } from '@rocket.chat/apps-engine/definition/accessors';
+import { IMessageAction, IMessageAttachment, MessageActionType, MessageProcessingType } from '@rocket.chat/apps-engine/definition/messages';
 import { IRoom } from '@rocket.chat/apps-engine/definition/rooms';
 import { IUser } from '@rocket.chat/apps-engine/definition/users';
 import { AppPersistence } from '../persistence';
@@ -110,15 +110,29 @@ export async function sendMediaMetadata(server, metadatas, query, read: IRead, m
   for (let x = 0; x < metadatas.length; x++) {
     const metadata = metadatas[x];
 
+    const fields = new Array();
+
+    // Wanted to do actions for request, but can't pass tokens or headers, just urls...
+    // TODO: Revisit when the API has matured and allows for complex HTTP requests with Bearer * headers.
+    const actions = new Array<IMessageAction>();
+
     let title = '';
     if (metadata.grandparentTitle) {
       title += metadata.grandparentTitle + ' ';
     }
-    if (metadata.parentIndex && metadata.type && metadata.type === 'episode') {
-      title += 'S' + metadata.parentIndex + ' ';
-    }
-    if (metadata.index && metadata.type && metadata.type === 'episode')  {
-      title += 'E' + metadata.index + ' ';
+    if (metadata.type && metadata.type === 'episode') {
+      if (metadata.parentIndex !== undefined && metadata.index) {
+        let seasonNumber = metadata.parentIndex.toString();
+        if (seasonNumber.length === 1) {
+          seasonNumber = '0' + seasonNumber;
+        }
+        title += ' - S' + seasonNumber + '';
+        let episodeNumber = metadata.index.toString();
+        if (episodeNumber.length === 1) {
+          episodeNumber = '0' + episodeNumber;
+        }
+        title += 'E' + episodeNumber + ' - ';
+      }
     }
     if (metadata.title) {
       title += metadata.title + ' ';
@@ -129,22 +143,100 @@ export async function sendMediaMetadata(server, metadatas, query, read: IRead, m
 
     const metadataLink = 'https://app.plex.tv/desktop#!/server/' + server.machineId + '/details?key=' + metadata.key;
 
-    let text = '*Library: *' + metadata.librarySectionTitle + '\n';
+    actions.push({
+      type: MessageActionType.BUTTON,
+      url: metadataLink,
+      text: 'View on Plex',
+      msg_in_chat_window: false,
+      msg_processing_type: MessageProcessingType.SendMessage,
+    });
+
+    if (metadata.Genre && Array.isArray(metadata.Genre) && metadata.Genre.length > 0) {
+      let genreText = '';
+      metadata.Genre.forEach((genre) => {
+        if (genre.tag) {
+          genreText += genre.tag + '\n';
+        }
+      });
+      genreText = genreText.substring(0, genreText.length - 1); // Remove last '\n'
+      fields.push({
+        short: true,
+        title: 'Genre(s)',
+        value: genreText,
+      });
+    }
+
+    if (metadata.Studio && Array.isArray(metadata.Studio) && metadata.Studio.length > 0) {
+      let studioText = '';
+      metadata.Studio.forEach((studio) => {
+        if (studio.tag) {
+          studioText += studio.tag + '\n';
+        }
+      });
+      studioText = studioText.substring(0, studioText.length - 1); // Remove last '\n'
+      fields.push({
+        short: true,
+        title: 'Studio(s)',
+        value: studioText,
+      });
+    }
+
+    if (metadata.Director && Array.isArray(metadata.Director) && metadata.Director.length > 0) {
+      let directorsText = '';
+      metadata.Director.forEach((director) => {
+        if (director.tag) {
+          directorsText += director.tag + '\n';
+        }
+      });
+      directorsText = directorsText.substring(0, directorsText.length - 1); // Remove last '\n'
+      fields.push({
+        short: true,
+        title: 'Director(s)',
+        value: directorsText,
+      });
+    }
+
+    if (metadata.Writer && Array.isArray(metadata.Writer) && metadata.Writer.length > 0) {
+      let writersText = '';
+      metadata.Writer.forEach((writer) => {
+        if (writer.tag) {
+          writersText += writer.tag + '\n';
+        }
+      });
+      writersText = writersText.substring(0, writersText.length - 1); // Remove last '\n'
+      fields.push({
+        short: true,
+        title: 'Writer(s)',
+        value: writersText,
+      });
+    }
+
+    let text = '';
+    text += '*Type: *' + metadata.type.charAt(0).toUpperCase() + metadata.type.slice(1) + '\n';
+    text += '*Library: *' + metadata.librarySectionTitle + '\n';
     if (metadata.contentRating) {
       text += '*Rated *' + metadata.contentRating + '\n';
+    }
+    if (metadata.rating && !isNaN(metadata.rating) && metadata.audienceRating && !isNaN(metadata.audienceRating)) {
+      text += '*Ratings: *' + (Number(metadata.rating) * 10).toFixed(0) + '% *Audience: *' + (Number(metadata.audienceRating) * 10).toFixed(0) + '%\n';
     }
     if (metadata.originallyAvailableAt) {
       text += '*Originally Added On *' + metadata.originallyAvailableAt + '\n';
     }
-    text += '*Summary: *' + metadata.summary;
+    if (metadata.tagline) {
+      text += '*Tagline: *' + metadata.tagline + '\n';
+    }
+    text += '\n*Summary: *' + metadata.summary;
 
     attachments.push({
-      collapsed: false,
+      collapsed: metadatas.length === 1 ? false : true,
       color: '#e4a00e',
       title: {
         value: title,
         link: metadataLink,
       },
+      actions,
+      fields,
       text,
     });
   }

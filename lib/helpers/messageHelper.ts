@@ -114,10 +114,10 @@ export async function sendMediaMetadata(server, metadatas, query, read: IRead, m
     if (metadata.grandparentTitle) {
       title += metadata.grandparentTitle + ' ';
     }
-    if (metadata.parentIndex) {
+    if (metadata.parentIndex && metadata.type && metadata.type === 'episode') {
       title += 'S' + metadata.parentIndex + ' ';
     }
-    if (metadata.index)  {
+    if (metadata.index && metadata.type && metadata.type === 'episode')  {
       title += 'E' + metadata.index + ' ';
     }
     if (metadata.title) {

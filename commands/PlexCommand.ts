@@ -1,6 +1,7 @@
 import { IHttp, IModify, IPersistence, IRead } from '@rocket.chat/apps-engine/definition/accessors';
 import { ISlashCommand, SlashCommandContext } from '@rocket.chat/apps-engine/definition/slashcommands';
 import defaultHeaders from '../lib/helpers/defaultHeaders';
+import { getMediaTypes } from '../lib/helpers/mediaTypes';
 import * as msgHelper from '../lib/helpers/messageHelper';
 import { AppPersistence } from '../lib/persistence';
 import { PlexApp } from '../PlexApp';
@@ -11,6 +12,7 @@ enum Command {
   Servers = 'servers',
   Server = 'server',
   Search = 'search',
+  MediaTypes = 'mediatypes',
 }
 
 export class PlexCommand implements ISlashCommand {
@@ -40,6 +42,9 @@ export class PlexCommand implements ISlashCommand {
       case Command.Search:
         await this.processSearchCommand(context, read, modify, http, persis);
         break;
+      case Command.MediaTypes:
+        await this.processMediaTypesCommand(context, read, modify, http, persis);
+        break;
       default:
         await this.processHelpCommand(context, read, modify, http, persis);
         break;
@@ -57,7 +62,26 @@ export class PlexCommand implements ISlashCommand {
         + '`/plex login [USERNAME] [PASSWORD]`\n>Login to Plex\n'
         + '`/plex servers`\n>Show all Plex Media Servers authorized to your Plex account\n'
         + '`/plex server [SERVER NAME]`\n>Search for a Plex Server authorized to your Plex account by name\n'
-        + '`/plex search [SERVER NAME] [QUERY]`\n>Search for media using the Plex Server name provided (can be a partial name)\n',
+        // tslint:disable-next-line:max-line-length
+        + '`/plex search [SERVER NAME] [MEDIA TYPE] [QUERY]`\n>Search for media using the Plex Server name provided (can be a partial name)\n',
+    }, read, modify, context.getSender(), context.getRoom());
+    return;
+  }
+
+  private async processMediaTypesCommand(context: SlashCommandContext, read: IRead, modify: IModify, http: IHttp, persis: IPersistence): Promise<void> {
+    const mediaTypes = getMediaTypes();
+    let text = '';
+    mediaTypes.forEach((mediaType) => {
+      text += '*' + mediaType.id + '* ' + mediaType.typeString + '\n';
+    });
+    text = text.substring(0, text.length - 1); // Remove last '\n'
+    await msgHelper.sendNotificationSingleAttachment({
+      collapsed: false,
+      color: '#e4a00e',
+      title: {
+        value: 'Media Types',
+      },
+      text,
     }, read, modify, context.getSender(), context.getRoom());
     return;
   }
@@ -334,82 +358,107 @@ export class PlexCommand implements ISlashCommand {
 
   private async processSearchCommand(context: SlashCommandContext, read: IRead, modify: IModify, http: IHttp, persis: IPersistence): Promise<void> {
     const args = context.getArguments();
-    if (args.length < 3) {
-      await msgHelper.sendNotification('Usage: `/plex search [SERVER NAME] [QUERY]`', read, modify, context.getSender(), context.getRoom());
+    if (args.length < 4) {
+      // tslint:disable-next-line:max-line-length
+      await msgHelper.sendNotification('Usage: `/plex search [SERVER NAME] [MEDIA TYPE] [QUERY]`', read, modify, context.getSender(), context.getRoom());
+      return ;
     }
     const serverArg = args[1];
+    const typeArg = args[2].toLowerCase().trim();
+    // tslint:disable-next-line:max-line-length
+    if (!typeArg || (typeArg && typeArg !== 'movie' && typeArg !== 'show' && typeArg !== 'episode' && typeArg !== 'artist' && typeArg !== 'album' && typeArg !== 'track')) {
+      // tslint:disable-next-line:max-line-length
+      await msgHelper.sendNotification('Usage: `/plex search [SERVER NAME] [MEDIA TYPE] [QUERY]`', read, modify, context.getSender(), context.getRoom());
+      return;
+    }
+    const type = getMediaTypes().find((mediaType) => {
+      return mediaType.typeString === typeArg;
+    });
+    if (!type) {
+      // tslint:disable-next-line:max-line-length
+      await msgHelper.sendNotification('Invalid type!\nUsage: `/plex search [SERVER NAME] [MEDIA TYPE] [QUERY]`', read, modify, context.getSender(), context.getRoom());
+      return;
+    }
+
     let searchArg = '';
     // tslint:disable-next-line:prefer-for-of
-    for (let x = 2; x < args.length; x++) {
+    for (let x = 3; x < args.length; x++) {
       searchArg += args[x] + ' ';
     }
     searchArg = searchArg.trim();
 
     if (!serverArg || searchArg === '') {
-      await msgHelper.sendNotification('Usage: `/plex search [SERVER NAME] [QUERY]`', read, modify, context.getSender(), context.getRoom());
+      // tslint:disable-next-line:max-line-length
+      await msgHelper.sendNotification('Usage: `/plex search [SERVER NAME] [MEDIA TYPE] [QUERY]`', read, modify, context.getSender(), context.getRoom());
+      return;
+    }
+
+    const persistence = new AppPersistence(persis, read.getPersistenceReader());
+
+    const token = await persistence.getUserToken(context.getSender());
+    if (!token) {
+      // tslint:disable-next-line:max-line-length
+      await msgHelper.sendNotification('No token detected! Please login first using `/plex login [USERNAME] [PASSWORD]`', read, modify, context.getSender(), context.getRoom());
     } else {
-      const persistence = new AppPersistence(persis, read.getPersistenceReader());
-
-      const token = await persistence.getUserToken(context.getSender());
-      if (!token) {
+      const servers = await persistence.getUserServers(context.getSender());
+      if (!servers) {
         // tslint:disable-next-line:max-line-length
-        await msgHelper.sendNotification('No token detected! Please login first using `/plex login [USERNAME] [PASSWORD]`', read, modify, context.getSender(), context.getRoom());
+        await msgHelper.sendNotification('No servers stored! Try logging in again: `/plex login [USERNAME] [PASSWORD]`', read, modify, context.getSender(), context.getRoom());
       } else {
-        const servers = await persistence.getUserServers(context.getSender());
-        if (!servers) {
-          // tslint:disable-next-line:max-line-length
-          await msgHelper.sendNotification('No servers stored! Try logging in again: `/plex login [USERNAME] [PASSWORD]`', read, modify, context.getSender(), context.getRoom());
-        } else {
-          try {
-            let serverChosen;
-            let serverFound = false;
-            const serversList = JSON.parse(servers);
-            if (serversList && Array.isArray(serversList)) {
-              serversList.forEach((server) => {
-                if (!serverFound && server.name.toLowerCase().indexOf(serverArg.toLowerCase()) !== -1) {
-                  serverChosen = server;
-                  serverFound = true;
-                }
-              });
-
-              if (serverFound && serverFound === true) {
-                const url = serverChosen.scheme + '://' + serverChosen.address + ':' + serverChosen.port + '/search';
-                const headers = defaultHeaders;
-                headers['X-Plex-Token'] = token;
-                const response = await http.get(url, {
-                  headers,
-                  params: {
-                    query: searchArg,
-                  },
-                });
-                if (response && response.statusCode === 200 && response.content) {
-                  try {
-                    const searchResultsJson = JSON.parse(response.content);
-                    if (searchResultsJson && searchResultsJson.MediaContainer && searchResultsJson.MediaContainer.size) {
-                      const actualResults = searchResultsJson.MediaContainer.Metadata;
-                      if (actualResults && actualResults.length > 0) {
-                        // tslint:disable-next-line:max-line-length
-                        await msgHelper.sendMediaMetadata(serverChosen, actualResults, searchArg, read, modify, context.getSender(), context.getRoom());
-                      } else {
-                        // tslint:disable-next-line:max-line-length
-                        await msgHelper.sendMediaMetadata(serverChosen, [], searchArg, read, modify, context.getSender(), context.getRoom());
-                      }
-                    }
-                  } catch (e) {
-                    console.log('Failed to return search results!', e);
-                    await msgHelper.sendNotification('Failed to return search results!', read, modify, context.getSender(), context.getRoom());
-                  }
-                } else if (response.statusCode === 400) {
-                  await msgHelper.sendTokenExpired(read, modify, context.getSender(), context.getRoom(), persis);
-                }
-              } else {
-                await msgHelper.sendNotification('Server Name not found for query `' + serverArg + '`!', read, modify, context.getSender(), context.getRoom());
+        try {
+          let serverChosen;
+          let serverFound = false;
+          const serversList = JSON.parse(servers);
+          if (serversList && Array.isArray(serversList)) {
+            serversList.forEach((server) => {
+              if (!serverFound && server.name.toLowerCase().indexOf(serverArg.toLowerCase()) !== -1) {
+                serverChosen = server;
+                serverFound = true;
               }
+            });
+
+            if (serverFound && serverFound === true) {
+              const url = serverChosen.scheme + '://' + serverChosen.address + ':' + serverChosen.port + '/search';
+              const headers = defaultHeaders;
+              headers['X-Plex-Token'] = token;
+              const response = await http.get(url, {
+                headers,
+                params: {
+                  query: searchArg,
+                  type: type.id.toString(),
+                },
+              });
+              if (response && response.statusCode === 200 && response.content) {
+                try {
+                  const queryDisplay = typeArg + ' ' + searchArg;
+                  const searchResultsJson = JSON.parse(response.content);
+                  if (searchResultsJson && searchResultsJson.MediaContainer && searchResultsJson.MediaContainer.size) {
+                    const actualResults = searchResultsJson.MediaContainer.Metadata;
+                    if (actualResults && actualResults.length > 0) {
+                      // tslint:disable-next-line:max-line-length
+                      await msgHelper.sendMediaMetadata(serverChosen, actualResults, queryDisplay, read, modify, context.getSender(), context.getRoom());
+                    } else {
+                      // tslint:disable-next-line:max-line-length
+                      await msgHelper.sendMediaMetadata(serverChosen, [], queryDisplay, read, modify, context.getSender(), context.getRoom());
+                    }
+                  } else {
+                    // tslint:disable-next-line:max-line-length
+                    await msgHelper.sendMediaMetadata(serverChosen, [], queryDisplay, read, modify, context.getSender(), context.getRoom());
+                  }
+                } catch (e) {
+                  console.log('Failed to return search results!', e);
+                  await msgHelper.sendNotification('Failed to return search results!', read, modify, context.getSender(), context.getRoom());
+                }
+              } else if (response.statusCode === 400) {
+                await msgHelper.sendTokenExpired(read, modify, context.getSender(), context.getRoom(), persis);
+              }
+            } else {
+              await msgHelper.sendNotification('Server Name not found for query `' + serverArg + '`!', read, modify, context.getSender(), context.getRoom());
             }
-          } catch (e) {
-            // tslint:disable-next-line:max-line-length
-            await msgHelper.sendNotification('Error searching for server!', read, modify, context.getSender(), context.getRoom());
           }
+        } catch (e) {
+          // tslint:disable-next-line:max-line-length
+          await msgHelper.sendNotification('Error searching for server!', read, modify, context.getSender(), context.getRoom());
         }
       }
     }

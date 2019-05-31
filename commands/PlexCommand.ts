@@ -83,6 +83,64 @@ export class PlexCommand implements ISlashCommand {
     return;
   }
 
+  // tslint:disable-next-line:max-line-length
+  private async getDataFromServer(serverName: string, serverEndpoint: string, context: SlashCommandContext, read: IRead, modify: IModify, http: IHttp, persis: IPersistence, params?): Promise<any|undefined> {
+    const persistence = new AppPersistence(persis, read.getPersistenceReader());
+
+    const token = await persistence.getUserToken(context.getSender());
+    if (!token) {
+      // tslint:disable-next-line:max-line-length
+      await msgHelper.sendNotification('No token detected! Please login first using `/plex login [USERNAME] [PASSWORD]`', read, modify, context.getSender(), context.getRoom());
+      return;
+    }
+
+    const servers = await persistence.getUserServers(context.getSender());
+    if (!servers) {
+      // tslint:disable-next-line:max-line-length
+      await msgHelper.sendNotification('No servers stored! Try logging in again: `/plex login [USERNAME] [PASSWORD]`', read, modify, context.getSender(), context.getRoom());
+      return;
+    }
+    try {
+      let serverChosen;
+      let serverFound = false;
+      const serversList = JSON.parse(servers);
+      if (serversList && Array.isArray(serversList)) {
+        serversList.forEach((server) => {
+          if (!serverFound && server.name.toLowerCase().indexOf(serverName.toLowerCase()) !== -1) {
+            serverChosen = server;
+            serverFound = true;
+          }
+        });
+
+        if (serverFound && serverFound === true) {
+          const url = serverChosen.scheme + '://' + serverChosen.address + ':' + serverChosen.port + serverEndpoint;
+          const headers = defaultHeaders;
+          headers['X-Plex-Token'] = token;
+          const response = await http.get(url, {headers, params});
+          if (response && response.statusCode === 200 && response.content) {
+            return {
+              serverChosen,
+              content: response.content,
+            };
+          } else if (response.statusCode === 400) {
+            await msgHelper.sendTokenExpired(read, modify, context.getSender(), context.getRoom(), persis);
+            return;
+          }
+        } else {
+          await msgHelper.sendNotification('Server Name not found for query `' + serverName + '`!', read, modify, context.getSender(), context.getRoom());
+          return;
+        }
+      } else {
+        await msgHelper.sendNotification('Server Name not found for query `' + serverName + '`!', read, modify, context.getSender(), context.getRoom());
+        return;
+      }
+    } catch (e) {
+      // tslint:disable-next-line:max-line-length
+      await msgHelper.sendNotification('Error getting Sessions for server!', read, modify, context.getSender(), context.getRoom());
+      return;
+    }
+  }
+
   private async processMediaTypesCommand(context: SlashCommandContext, read: IRead, modify: IModify, http: IHttp, persis: IPersistence): Promise<void> {
     const mediaTypes = getMediaTypes();
     let text = '';
@@ -410,75 +468,33 @@ export class PlexCommand implements ISlashCommand {
       return;
     }
 
-    const persistence = new AppPersistence(persis, read.getPersistenceReader());
+    const defaultTypes = '1,2,8,9,11,14'; // movie,show,artist,album,photoAlbum,clip
+    const params = {
+      query: searchArg,
+      type: (type && type.id) ? type.id.toString() : defaultTypes,
+    };
 
-    const token = await persistence.getUserToken(context.getSender());
-    if (!token) {
-      // tslint:disable-next-line:max-line-length
-      await msgHelper.sendNotification('No token detected! Please login first using `/plex login [USERNAME] [PASSWORD]`', read, modify, context.getSender(), context.getRoom());
-      return;
-    }
-    const servers = await persistence.getUserServers(context.getSender());
-    if (!servers) {
-      // tslint:disable-next-line:max-line-length
-      await msgHelper.sendNotification('No servers stored! Try logging in again: `/plex login [USERNAME] [PASSWORD]`', read, modify, context.getSender(), context.getRoom());
-      return;
-    }
+    const responseContent = await this.getDataFromServer(serverArg, '/search', context, read, modify, http, persis, params);
+
     try {
-      let serverChosen;
-      let serverFound = false;
-      const serversList = JSON.parse(servers);
-      if (serversList && Array.isArray(serversList)) {
-        serversList.forEach((server) => {
-          if (!serverFound && server.name.toLowerCase().indexOf(serverArg.toLowerCase()) !== -1) {
-            serverChosen = server;
-            serverFound = true;
-          }
-        });
-
-        if (serverFound && serverFound === true) {
-          const url = serverChosen.scheme + '://' + serverChosen.address + ':' + serverChosen.port + '/search';
-          const headers = defaultHeaders;
-          headers['X-Plex-Token'] = token;
-          const defaultTypes = '1,2,8,9,11,14'; // movie,show,artist,album,photoAlbum,clip
-          const response = await http.get(url, {
-            headers,
-            params: {
-              query: searchArg,
-              type: (type && type.id) ? type.id.toString() : defaultTypes,
-            },
-          });
-          if (response && response.statusCode === 200 && response.content) {
-            try {
-              const queryDisplay = serverArg + ' ' + (type ? typeArg + ' ' : 'all ') + searchArg;
-              const searchResultsJson = JSON.parse(response.content);
-              if (searchResultsJson && searchResultsJson.MediaContainer && searchResultsJson.MediaContainer.size) {
-                const actualResults = searchResultsJson.MediaContainer.Metadata;
-                if (actualResults && actualResults.length > 0) {
-                  // tslint:disable-next-line:max-line-length
-                  await msgHelper.sendMediaMetadata(serverChosen, actualResults, queryDisplay, read, modify, context.getSender(), context.getRoom());
-                } else {
-                  // tslint:disable-next-line:max-line-length
-                  await msgHelper.sendMediaMetadata(serverChosen, [], queryDisplay, read, modify, context.getSender(), context.getRoom());
-                }
-              } else {
-                // tslint:disable-next-line:max-line-length
-                await msgHelper.sendMediaMetadata(serverChosen, [], queryDisplay, read, modify, context.getSender(), context.getRoom());
-              }
-            } catch (e) {
-              console.log('Failed to return search results!', e);
-              await msgHelper.sendNotification('Failed to return search results!', read, modify, context.getSender(), context.getRoom());
-            }
-          } else if (response.statusCode === 400) {
-            await msgHelper.sendTokenExpired(read, modify, context.getSender(), context.getRoom(), persis);
-          }
+      const queryDisplay = serverArg + ' ' + (type ? typeArg + ' ' : 'all ') + searchArg;
+      const searchResultsJson = JSON.parse(responseContent.content);
+      if (searchResultsJson && searchResultsJson.MediaContainer && searchResultsJson.MediaContainer.size) {
+        const actualResults = searchResultsJson.MediaContainer.Metadata;
+        if (actualResults && actualResults.length > 0) {
+          // tslint:disable-next-line:max-line-length
+          await msgHelper.sendMediaMetadata(responseContent.serverChosen, actualResults, queryDisplay, read, modify, context.getSender(), context.getRoom());
         } else {
-          await msgHelper.sendNotification('Server Name not found for query `' + serverArg + '`!', read, modify, context.getSender(), context.getRoom());
+          // tslint:disable-next-line:max-line-length
+          await msgHelper.sendMediaMetadata(responseContent.serverChosen, [], queryDisplay, read, modify, context.getSender(), context.getRoom());
         }
+      } else {
+        // tslint:disable-next-line:max-line-length
+        await msgHelper.sendMediaMetadata(responseContent.serverChosen, [], queryDisplay, read, modify, context.getSender(), context.getRoom());
       }
     } catch (e) {
-      // tslint:disable-next-line:max-line-length
-      await msgHelper.sendNotification('Error searching for server!', read, modify, context.getSender(), context.getRoom());
+      console.log('Failed to return search results!', e);
+      await msgHelper.sendNotification('Failed to return search results!', read, modify, context.getSender(), context.getRoom());
     }
   }
 
@@ -489,67 +505,26 @@ export class PlexCommand implements ISlashCommand {
       return;
     }
 
-    const persistence = new AppPersistence(persis, read.getPersistenceReader());
+    const responseContent = await this.getDataFromServer(serverArg, '/library/onDeck', context, read, modify, http, persis);
 
-    const token = await persistence.getUserToken(context.getSender());
-    if (!token) {
-      // tslint:disable-next-line:max-line-length
-      await msgHelper.sendNotification('No token detected! Please login first using `/plex login [USERNAME] [PASSWORD]`', read, modify, context.getSender(), context.getRoom());
-      return;
-    }
-    const servers = await persistence.getUserServers(context.getSender());
-    if (!servers) {
-      // tslint:disable-next-line:max-line-length
-      await msgHelper.sendNotification('No servers stored! Try logging in again: `/plex login [USERNAME] [PASSWORD]`', read, modify, context.getSender(), context.getRoom());
-      return;
-    }
     try {
-      let serverChosen;
-      let serverFound = false;
-      const serversList = JSON.parse(servers);
-      if (serversList && Array.isArray(serversList)) {
-        serversList.forEach((server) => {
-          if (!serverFound && server.name.toLowerCase().indexOf(serverArg.toLowerCase()) !== -1) {
-            serverChosen = server;
-            serverFound = true;
-          }
-        });
-
-        if (serverFound && serverFound === true) {
-          const url = serverChosen.scheme + '://' + serverChosen.address + ':' + serverChosen.port + '/library/onDeck';
-          const headers = defaultHeaders;
-          headers['X-Plex-Token'] = token;
-          const response = await http.get(url, {headers});
-          if (response && response.statusCode === 200 && response.content) {
-            try {
-              const searchResultsJson = JSON.parse(response.content);
-              if (searchResultsJson && searchResultsJson.MediaContainer && searchResultsJson.MediaContainer.size) {
-                const actualResults = searchResultsJson.MediaContainer.Metadata;
-                if (actualResults && actualResults.length > 0) {
-                  // tslint:disable-next-line:max-line-length
-                  await msgHelper.sendMediaMetadata(serverChosen, actualResults, serverArg + ' on-deck', read, modify, context.getSender(), context.getRoom());
-                } else {
-                  // tslint:disable-next-line:max-line-length
-                  await msgHelper.sendMediaMetadata(serverChosen, [], serverArg + ' on-deck', read, modify, context.getSender(), context.getRoom());
-                }
-              } else {
-                // tslint:disable-next-line:max-line-length
-                await msgHelper.sendMediaMetadata(serverChosen, [], serverArg + ' on-deck', read, modify, context.getSender(), context.getRoom());
-              }
-            } catch (e) {
-              console.log('Failed to return On-Deck results!', e);
-              await msgHelper.sendNotification('Failed to return On-Deck results!', read, modify, context.getSender(), context.getRoom());
-            }
-          } else if (response.statusCode === 400) {
-            await msgHelper.sendTokenExpired(read, modify, context.getSender(), context.getRoom(), persis);
-          }
+      const searchResultsJson = JSON.parse(responseContent.content);
+      if (searchResultsJson && searchResultsJson.MediaContainer && searchResultsJson.MediaContainer.size) {
+        const actualResults = searchResultsJson.MediaContainer.Metadata;
+        if (actualResults && actualResults.length > 0) {
+          // tslint:disable-next-line:max-line-length
+          await msgHelper.sendMediaMetadata(responseContent.serverChosen, actualResults, serverArg + ' on-deck', read, modify, context.getSender(), context.getRoom());
         } else {
-          await msgHelper.sendNotification('Server Name not found for query `' + serverArg + '`!', read, modify, context.getSender(), context.getRoom());
+          // tslint:disable-next-line:max-line-length
+          await msgHelper.sendMediaMetadata(responseContent.serverChosen, [], serverArg + ' on-deck', read, modify, context.getSender(), context.getRoom());
         }
+      } else {
+        // tslint:disable-next-line:max-line-length
+        await msgHelper.sendMediaMetadata(responseContent.serverChosen, [], serverArg + ' on-deck', read, modify, context.getSender(), context.getRoom());
       }
     } catch (e) {
-      // tslint:disable-next-line:max-line-length
-      await msgHelper.sendNotification('Error getting On-Deck for server!', read, modify, context.getSender(), context.getRoom());
+      console.log('Failed to return On-Deck results!', e);
+      await msgHelper.sendNotification('Failed to return On-Deck results!', read, modify, context.getSender(), context.getRoom());
     }
   }
 
@@ -560,67 +535,26 @@ export class PlexCommand implements ISlashCommand {
       return;
     }
 
-    const persistence = new AppPersistence(persis, read.getPersistenceReader());
+    const responseContent = await this.getDataFromServer(serverArg, '/status/sessions', context, read, modify, http, persis);
 
-    const token = await persistence.getUserToken(context.getSender());
-    if (!token) {
-      // tslint:disable-next-line:max-line-length
-      await msgHelper.sendNotification('No token detected! Please login first using `/plex login [USERNAME] [PASSWORD]`', read, modify, context.getSender(), context.getRoom());
-      return;
-    }
-    const servers = await persistence.getUserServers(context.getSender());
-    if (!servers) {
-      // tslint:disable-next-line:max-line-length
-      await msgHelper.sendNotification('No servers stored! Try logging in again: `/plex login [USERNAME] [PASSWORD]`', read, modify, context.getSender(), context.getRoom());
-      return;
-    }
     try {
-      let serverChosen;
-      let serverFound = false;
-      const serversList = JSON.parse(servers);
-      if (serversList && Array.isArray(serversList)) {
-        serversList.forEach((server) => {
-          if (!serverFound && server.name.toLowerCase().indexOf(serverArg.toLowerCase()) !== -1) {
-            serverChosen = server;
-            serverFound = true;
-          }
-        });
-
-        if (serverFound && serverFound === true) {
-          const url = serverChosen.scheme + '://' + serverChosen.address + ':' + serverChosen.port + '/status/sessions';
-          const headers = defaultHeaders;
-          headers['X-Plex-Token'] = token;
-          const response = await http.get(url, {headers});
-          if (response && response.statusCode === 200 && response.content) {
-            try {
-              const searchResultsJson = JSON.parse(response.content);
-              if (searchResultsJson && searchResultsJson.MediaContainer && searchResultsJson.MediaContainer.size) {
-                const actualResults = searchResultsJson.MediaContainer.Metadata;
-                if (actualResults && actualResults.length > 0) {
-                  // tslint:disable-next-line:max-line-length
-                  await msgHelper.sendMediaMetadata(serverChosen, actualResults, serverArg + ' sessions', read, modify, context.getSender(), context.getRoom());
-                } else {
-                  // tslint:disable-next-line:max-line-length
-                  await msgHelper.sendMediaMetadata(serverChosen, [], serverArg + ' sessions', read, modify, context.getSender(), context.getRoom());
-                }
-              } else {
-                // tslint:disable-next-line:max-line-length
-                await msgHelper.sendMediaMetadata(serverChosen, [], serverArg + ' sessions', read, modify, context.getSender(), context.getRoom());
-              }
-            } catch (e) {
-              console.log('Failed to return Session results!', e);
-              await msgHelper.sendNotification('Failed to return Session results!', read, modify, context.getSender(), context.getRoom());
-            }
-          } else if (response.statusCode === 400) {
-            await msgHelper.sendTokenExpired(read, modify, context.getSender(), context.getRoom(), persis);
-          }
+      const searchResultsJson = JSON.parse(responseContent.content);
+      if (searchResultsJson && searchResultsJson.MediaContainer && searchResultsJson.MediaContainer.size) {
+        const actualResults = searchResultsJson.MediaContainer.Metadata;
+        if (actualResults && actualResults.length > 0) {
+          // tslint:disable-next-line:max-line-length
+          await msgHelper.sendMediaMetadata(responseContent.serverChosen, actualResults, serverArg + ' sessions', read, modify, context.getSender(), context.getRoom());
         } else {
-          await msgHelper.sendNotification('Server Name not found for query `' + serverArg + '`!', read, modify, context.getSender(), context.getRoom());
+          // tslint:disable-next-line:max-line-length
+          await msgHelper.sendMediaMetadata(responseContent.serverChosen, [], serverArg + ' sessions', read, modify, context.getSender(), context.getRoom());
         }
+      } else {
+        // tslint:disable-next-line:max-line-length
+        await msgHelper.sendMediaMetadata(responseContent.serverChosen, [], serverArg + ' sessions', read, modify, context.getSender(), context.getRoom());
       }
     } catch (e) {
-      // tslint:disable-next-line:max-line-length
-      await msgHelper.sendNotification('Error getting Sessions for server!', read, modify, context.getSender(), context.getRoom());
+      console.log('Failed to return Session results!', e);
+      await msgHelper.sendNotification('Failed to return Session results!', read, modify, context.getSender(), context.getRoom());
     }
   }
 

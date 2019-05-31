@@ -193,9 +193,6 @@ export async function sendMediaMetadata(server, metadatas, query, read: IRead, m
     let title = '';
     if (metadata.grandparentTitle) {
       title += metadata.grandparentTitle + ' ';
-      if (metadata.title) {
-        title += '- ';
-      }
     }
     if (metadata.type && metadata.type === 'episode') {
       if (metadata.parentIndex !== undefined && metadata.index) {
@@ -360,6 +357,9 @@ export async function sendMediaMetadata(server, metadatas, query, read: IRead, m
     }
 
     let text = '';
+    if (server.name) {
+      text += '*Server: *' + server.name + '\n';
+    }
     if (metadata.User) {
       text += '*User: *' + metadata.User.title + '\n';
       thumbnailUrl = metadata.User.thumb;

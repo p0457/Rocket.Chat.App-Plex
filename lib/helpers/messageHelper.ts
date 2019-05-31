@@ -1,8 +1,9 @@
 import { IModify, IPersistence, IRead } from '@rocket.chat/apps-engine/definition/accessors';
-import { IMessageAction, IMessageAttachment, MessageActionType, MessageProcessingType } from '@rocket.chat/apps-engine/definition/messages';
+import { IMessageAction, IMessageAttachment, MessageActionButtonsAlignment, MessageActionType, MessageProcessingType } from '@rocket.chat/apps-engine/definition/messages';
 import { IRoom } from '@rocket.chat/apps-engine/definition/rooms';
 import { IUser } from '@rocket.chat/apps-engine/definition/users';
 import { AppPersistence } from '../persistence';
+import { formatBytes } from './bytesConverter';
 
 export async function sendNotification(text: string, read: IRead, modify: IModify, user: IUser, room: IRoom): Promise<void> {
   const icon = await read.getEnvironmentReader().getSettings().getValueById('plex_icon');
@@ -49,21 +50,18 @@ export async function sendNotificationMultipleAttachments(attachments: Array<IMe
   }).getMessage());
 }
 
-export async function sendNotificationSingleServerDetails(server, userThumbUrl: string | undefined, read: IRead, modify: IModify, user: IUser, room: IRoom): Promise<void> {
-  let text = '*v' + server.version + '*\n*Owner: *';
-  text += (server.owned && server.owned === true) ? 'You' : server.sourceTitle;
-  // tslint:disable-next-line:max-line-length
-  const userThumbUrlActual = (server.owned && server.owned === true) ? userThumbUrl : 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Antu_im-invisible-user.svg/512px-Antu_im-invisible-user.svg.png';
-  const serverAddress = server.scheme + '://' + server.address + ':' + server.port;
+export async function sendTokenExpired(read: IRead, modify: IModify, user: IUser, room: IRoom, persis: IPersistence): Promise<void> {
+  const persistence = new AppPersistence(persis, read.getPersistenceReader());
+  const userThumbUrl = await persistence.getUserThumb(user);
   await sendNotificationSingleAttachment({
     collapsed: false,
-    color: '#e4a00e',
-    thumbnailUrl: userThumbUrlActual,
+    color: '#e10000',
+    thumbnailUrl: userThumbUrl,
     title: {
-      value: server.name,
-      link: serverAddress,
+      value: 'Token Expired!',
+      link: 'https://app.plex.tv/desktop#!/account',
     },
-    text,
+    text: 'Please login again using `/plex login [USERNAME] [PASSWORD]`',
   }, read, modify, user, room);
 }
 
@@ -73,11 +71,82 @@ export async function sendNotificationMultipleServerDetails(servers, userThumbUr
   // tslint:disable-next-line:prefer-for-of
   for (let x = 0; x < servers.length; x++) {
     const server = servers[x];
+
+    const fields = new Array();
+
+    // Wanted to do actions for request, but can't pass tokens or headers, just urls...
+    // TODO: Revisit when the API has matured and allows for complex HTTP requests with Bearer * headers.
+    const actions = new Array<IMessageAction>();
+
     let text = '*v' + server.version + '*\n*Owner: *';
-    text += (server.owned && server.owned === true) ? 'You' : server.sourceTitle;
+    text += (server.owned === true) ? 'You' : server.sourceTitle;
     // tslint:disable-next-line:max-line-length
-    const userThumbUrlActual = (server.owned && server.owned === true) ? userThumbUrl : 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Antu_im-invisible-user.svg/512px-Antu_im-invisible-user.svg.png';
+    const userThumbUrlActual = (server.owned === true) ? userThumbUrl : 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Antu_im-invisible-user.svg/512px-Antu_im-invisible-user.svg.png';
     const serverAddress = server.scheme + '://' + server.address + ':' + server.port;
+    const serverLink = 'https://app.plex.tv/desktop#!/server/' + server.machineId;
+
+    actions.push({
+      type: MessageActionType.BUTTON,
+      url: serverLink,
+      text: 'View Server',
+      msg_in_chat_window: false,
+      msg_processing_type: MessageProcessingType.SendMessage,
+    });
+
+    if (server.owned === true) {
+      actions.push({
+        type: MessageActionType.BUTTON,
+        url: 'https://app.plex.tv/desktop#!/settings/server/' + server.machineId + '/status/server-dashboard',
+        text: 'View Dashboard',
+        msg_in_chat_window: false,
+        msg_processing_type: MessageProcessingType.SendMessage,
+      });
+      actions.push({
+        type: MessageActionType.BUTTON,
+        url: 'https://app.plex.tv/desktop#!/settings/server/' + server.machineId + '/status/alerts',
+        text: 'View Alerts',
+        msg_in_chat_window: false,
+        msg_processing_type: MessageProcessingType.SendMessage,
+      });
+      actions.push({
+        type: MessageActionType.BUTTON,
+        url: 'https://app.plex.tv/desktop#!/settings/server/' + server.machineId + '/status/sync',
+        text: 'View Sync Status',
+        msg_in_chat_window: false,
+        msg_processing_type: MessageProcessingType.SendMessage,
+      });
+      actions.push({
+        type: MessageActionType.BUTTON,
+        url: 'https://app.plex.tv/desktop#!/settings/server/' + server.machineId + '/status/conversion',
+        text: 'View Conversion Status',
+        msg_in_chat_window: false,
+        msg_processing_type: MessageProcessingType.SendMessage,
+      });
+    }
+
+    actions.push({
+      type: MessageActionType.BUTTON,
+      text: 'Search Media',
+      msg: '/plex search ' + server.name + ' ',
+      msg_in_chat_window: true,
+      msg_processing_type: MessageProcessingType.RespondWithMessage,
+    });
+
+    actions.push({
+      type: MessageActionType.BUTTON,
+      text: 'Get On-Deck',
+      msg: '/plex on-deck ' + server.name,
+      msg_in_chat_window: true,
+      msg_processing_type: MessageProcessingType.RespondWithMessage,
+    });
+
+    actions.push({
+      type: MessageActionType.BUTTON,
+      text: 'Get Sessions',
+      msg: '/plex sessions ' + server.name,
+      msg_in_chat_window: true,
+      msg_processing_type: MessageProcessingType.RespondWithMessage,
+    });
 
     attachments.push({
       collapsed: false,
@@ -87,6 +156,9 @@ export async function sendNotificationMultipleServerDetails(servers, userThumbUr
         value: server.name,
         link: serverAddress,
       },
+      actions,
+      actionButtonsAlignment: MessageActionButtonsAlignment.HORIZONTAL,
+      fields,
       text,
     });
   }
@@ -116,9 +188,14 @@ export async function sendMediaMetadata(server, metadatas, query, read: IRead, m
     // TODO: Revisit when the API has matured and allows for complex HTTP requests with Bearer * headers.
     const actions = new Array<IMessageAction>();
 
+    let thumbnailUrl = '';
+
     let title = '';
     if (metadata.grandparentTitle) {
       title += metadata.grandparentTitle + ' ';
+      if (metadata.title) {
+        title += '- ';
+      }
     }
     if (metadata.type && metadata.type === 'episode') {
       if (metadata.parentIndex !== undefined && metadata.index) {
@@ -155,10 +232,10 @@ export async function sendMediaMetadata(server, metadatas, query, read: IRead, m
       let genreText = '';
       metadata.Genre.forEach((genre) => {
         if (genre.tag) {
-          genreText += genre.tag + '\n';
+          genreText += genre.tag + ', ';
         }
       });
-      genreText = genreText.substring(0, genreText.length - 1); // Remove last '\n'
+      genreText = genreText.substring(0, genreText.length - 2); // Remove last ', '
       fields.push({
         short: true,
         title: 'Genre(s)',
@@ -211,7 +288,82 @@ export async function sendMediaMetadata(server, metadatas, query, read: IRead, m
       });
     }
 
+    if (metadata.Session && metadata.Session.location && metadata.Session.bandwidth && !isNaN(metadata.Session.bandwidth)) {
+      const session = metadata.Session;
+      let sessionText = '';
+      sessionText += session.location.toUpperCase() + ' @';
+      const bandwidth = formatBytes(Number(session.bandwidth));
+      sessionText += bandwidth + '\n';
+      sessionText = sessionText.substring(0, sessionText.length - 1); // Remove last '\n'
+      fields.push({
+        short: true,
+        title: 'Session',
+        value: sessionText,
+      });
+    }
+
+    if (metadata.TranscodeSession) {
+      const transcode = metadata.TranscodeSession;
+      let transcodeText = '';
+      if (transcode.videoDecision === 'transcode' && transcode.sourceVideoCodec && transcode.videoCodec) {
+        transcodeText += '*' + transcode.sourceVideoCodec.toUpperCase() + '* => *'
+          + transcode.videoCodec.toUpperCase() + '*\n';
+      }
+      if (transcode.audioDecision === 'transcode' && transcode.sourceAudioCodec && transcode.audioCodec) {
+        transcodeText += '*' + transcode.sourceAudioCodec.toUpperCase() + '* => *'
+          + transcode.audioCodec.toUpperCase() + '*\n';
+      }
+      if (transcode.progress && !isNaN(transcode.progress) && transcode.speed && !isNaN(transcode.speed)) {
+        const progress = Number(transcode.progress).toFixed(1);
+        const speed = Number(transcode.progress).toFixed(1);
+        transcodeText += progress + '% complete (speed is ' + speed + ')';
+        if (transcode.throttled === true) {
+          transcodeText += ' (Throttled)';
+        }
+        transcodeText += '\n';
+      }
+      if (transcodeText.endsWith('\n')) {
+        transcodeText = transcodeText.substring(0, transcodeText.length - 1); // Remove last '\n'
+      }
+      fields.push({
+        short: false,
+        title: 'Transcode',
+        value: transcodeText,
+      });
+    }
+
+    if (metadata.Player) {
+      const player = metadata.Player;
+      let playerText = '';
+      if (player.platform && player.platformVersion) {
+        playerText += '*Platform: *' + player.platform + ' v' + player.platformVersion + '\n';
+      }
+      if (player.device && player.machineIdentifier) {
+        playerText += '*Machine: *' + player.device + ' (' + player.machineIdentifier + ')\n';
+      }
+      if (player.product && player.version) {
+        playerText += '*Product: *' + player.product + ' v' + player.version;
+        if (player.local === true) {
+          playerText += ' (Local)';
+        }
+        if (player.secure === true) {
+          playerText += ' (Secure)';
+        }
+        playerText += '\n';
+      }
+      playerText = playerText.substring(0, playerText.length - 1); // Remove last '\n'
+      fields.push({
+        short: false,
+        title: 'Player',
+        value: playerText,
+      });
+    }
+
     let text = '';
+    if (metadata.User) {
+      text += '*User: *' + metadata.User.title + '\n';
+      thumbnailUrl = metadata.User.thumb;
+    }
     text += '*Type: *' + metadata.type.charAt(0).toUpperCase() + metadata.type.slice(1) + '\n';
     text += '*Library: *' + metadata.librarySectionTitle + '\n';
     if (metadata.contentRating) {
@@ -226,7 +378,9 @@ export async function sendMediaMetadata(server, metadatas, query, read: IRead, m
     if (metadata.tagline) {
       text += '*Tagline: *' + metadata.tagline + '\n';
     }
-    text += '\n*Summary: *' + metadata.summary;
+    if (metadata.summary) {
+      text += '\n*Summary: *' + metadata.summary;
+    }
 
     attachments.push({
       collapsed: metadatas.length === 1 ? false : true,
@@ -235,26 +389,13 @@ export async function sendMediaMetadata(server, metadatas, query, read: IRead, m
         value: title,
         link: metadataLink,
       },
+      thumbnailUrl,
       actions,
+      actionButtonsAlignment: MessageActionButtonsAlignment.HORIZONTAL,
       fields,
       text,
     });
   }
 
   await sendNotificationMultipleAttachments(attachments, read, modify, user, room);
-}
-
-export async function sendTokenExpired(read: IRead, modify: IModify, user: IUser, room: IRoom, persis: IPersistence): Promise<void> {
-  const persistence = new AppPersistence(persis, read.getPersistenceReader());
-  const userThumbUrl = await persistence.getUserThumb(user);
-  await sendNotificationSingleAttachment({
-    collapsed: false,
-    color: '#e10000',
-    thumbnailUrl: userThumbUrl,
-    title: {
-      value: 'Token Expired!',
-      link: 'https://app.plex.tv/desktop#!/account',
-    },
-    text: 'Please login again using `/plex login [USERNAME] [PASSWORD]`',
-  }, read, modify, user, room);
 }

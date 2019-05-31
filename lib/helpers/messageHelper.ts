@@ -3,7 +3,6 @@ import { IMessageAttachment } from '@rocket.chat/apps-engine/definition/messages
 import { IRoom } from '@rocket.chat/apps-engine/definition/rooms';
 import { IUser } from '@rocket.chat/apps-engine/definition/users';
 import { AppPersistence } from '../persistence';
-import defaultHeaders from './defaultHeaders';
 
 export async function sendNotification(text: string, read: IRead, modify: IModify, user: IUser, room: IRoom): Promise<void> {
   const icon = await read.getEnvironmentReader().getSettings().getValueById('plex_icon');

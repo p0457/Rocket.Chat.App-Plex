@@ -390,6 +390,9 @@ export class PlexCommand implements ISlashCommand {
                       if (actualResults && actualResults.length > 0) {
                         // tslint:disable-next-line:max-line-length
                         await msgHelper.sendMediaMetadata(serverChosen, actualResults, searchArg, read, modify, context.getSender(), context.getRoom());
+                      } else {
+                        // tslint:disable-next-line:max-line-length
+                        await msgHelper.sendMediaMetadata(serverChosen, [], searchArg, read, modify, context.getSender(), context.getRoom());
                       }
                     }
                   } catch (e) {

@@ -1,6 +1,6 @@
 {
     "id": "da3e2910-e67f-4277-923b-c02536ced981",
-    "version": "0.0.1",
+    "version": "1.0.0",
     "requiredApiVersion": "^1.4.0",
     "iconFile": "icon.png",
     "author": {
@@ -11,5 +11,5 @@
     "name": "Plex",
     "nameSlug": "plex",
     "classFile": "PlexApp.ts",
-    "description": "Interact with your Plex Server."
+    "description": "Interact with your Plex Server and Account."
 }

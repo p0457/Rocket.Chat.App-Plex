@@ -3,6 +3,20 @@
   "customize_name_description": "Choose the username that this app will post as.",
   "customize_icon": "Customize Icon",
   "customize_icon_description": "Choose the icon that is used for messages from this app.",
-  "slashcommand_params": "help",
-  "slashcommand_description": "Shows all Plex App commands"
+  "slashcommand_params": "",
+  "slashcommand_description": "Shows all Plex App commands",
+  "slashcommand_login_params": "[USERNAME] [PASSWORD]",
+  "slashcommand_login_description": "Login to Plex",
+  "slashcommand_servers_params": "",
+  "slashcommand_servers_description": "Show all Plex Media Servers authorized to your Plex account",
+  "slashcommand_server_params": "[SERVER NAME]",
+  "slashcommand_server_description": "Search for a Plex Server authorized to your Plex account by name",
+  "slashcommand_search_params": "[SERVER NAME] [mediatype] [QUERY]",
+  "slashcommand_search_description": "Search for media using the Plex Server name provided (can be a partial name)",
+  "slashcommand_ondeck_params": "[SERVER NAME]",
+  "slashcommand_ondeck_description": "Shows what is On Deck using the Plex Server name provided (can be a partial name)",
+  "slashcommand_sessions_params": "[SERVER NAME]",
+  "slashcommand_sessions_description": "Shows what is being played (sessions) using the Plex Server name provided (can be a partial name)",
+  "slashcommand_devices_params": "",
+  "slashcommand_devices_description": "Shows what devices are associated to your Plex Account"
 }

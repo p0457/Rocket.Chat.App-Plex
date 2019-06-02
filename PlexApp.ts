@@ -5,6 +5,13 @@ import { App } from '@rocket.chat/apps-engine/definition/App';
 import { IAppInfo } from '@rocket.chat/apps-engine/definition/metadata';
 import { SettingType } from '@rocket.chat/apps-engine/definition/settings';
 import { PlexCommand } from './commands/PlexCommand';
+import { PlexDevicesCommand } from './commands/PlexDevicesCommand';
+import { PlexLoginCommand } from './commands/PlexLoginCommand';
+import { PlexOnDeckCommand } from './commands/PlexOnDeckCommand';
+import { PlexSearchCommand } from './commands/PlexSearchCommand';
+import { PlexServerCommand } from './commands/PlexServerCommand';
+import { PlexServersCommand } from './commands/PlexServersCommand';
+import { PlexSessionsCommand } from './commands/PlexSessionsCommand';
 
 export class PlexApp extends App {
     constructor(info: IAppInfo, logger: ILogger) {
@@ -33,5 +40,12 @@ export class PlexApp extends App {
       });
 
       await configuration.slashCommands.provideSlashCommand(new PlexCommand(this));
+      await configuration.slashCommands.provideSlashCommand(new PlexLoginCommand(this));
+      await configuration.slashCommands.provideSlashCommand(new PlexServersCommand(this));
+      await configuration.slashCommands.provideSlashCommand(new PlexServerCommand(this));
+      await configuration.slashCommands.provideSlashCommand(new PlexSearchCommand(this));
+      await configuration.slashCommands.provideSlashCommand(new PlexOnDeckCommand(this));
+      await configuration.slashCommands.provideSlashCommand(new PlexSessionsCommand(this));
+      await configuration.slashCommands.provideSlashCommand(new PlexDevicesCommand(this));
     }
 }

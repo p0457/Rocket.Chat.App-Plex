@@ -18,5 +18,9 @@
   "slashcommand_sessions_params": "[SERVER NAME]",
   "slashcommand_sessions_description": "Shows what is being played (sessions) using the Plex Server name provided (can be a partial name)",
   "slashcommand_devices_params": "",
-  "slashcommand_devices_description": "Shows what devices are associated to your Plex Account"
+  "slashcommand_devices_description": "Shows what devices are associated to your Plex Account",
+  "slashcommand_libraries_params": "[SERVER NAME]",
+  "slashcommand_libraries_description": "Shows the libraries for the Plex Server name provided (can be a partial name)",
+  "slashcommand_scan_params": "[SERVERNAME] [LIBRARY KEY|all]",
+  "slashcommand_scan_description": "Scans the library for the Plex Server name provided (can be a partial name)"
 }

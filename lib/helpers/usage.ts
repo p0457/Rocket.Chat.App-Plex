@@ -34,4 +34,14 @@ export default {
     usage: '`/plex-devices`',
     description: 'Shows what devices are associated to your Plex Account',
   },
+  libraries: {
+    command: 'plex-libraries',
+    usage: '`/plex-libraries [SERVER NAME]`',
+    description: 'Shows the libraries for the Plex Server name provided (can be a partial name)',
+  },
+  scan: {
+    command: 'plex-scan',
+    usage: '`/plex-scan [SERVER NAME] [LIBRARY KEY|all]`',
+    description: 'Scans the library for the Plex Server name provided (can be a partial name)',
+  },
 };

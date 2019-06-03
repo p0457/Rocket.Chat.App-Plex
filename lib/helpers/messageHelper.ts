@@ -154,7 +154,7 @@ export async function sendNotificationMultipleServerDetails(servers, userThumbUr
     actions.push({
       type: MessageActionType.BUTTON,
       text: 'Search Media',
-      msg: '/plex search ' + server.name + ' ',
+      msg: '/plex-search ' + server.name + ' ',
       msg_in_chat_window: true,
       msg_processing_type: MessageProcessingType.RespondWithMessage,
     });
@@ -162,7 +162,7 @@ export async function sendNotificationMultipleServerDetails(servers, userThumbUr
     actions.push({
       type: MessageActionType.BUTTON,
       text: 'Get On-Deck',
-      msg: '/plex on-deck ' + server.name,
+      msg: '/plex-on-deck ' + server.name,
       msg_in_chat_window: true,
       msg_processing_type: MessageProcessingType.RespondWithMessage,
     });
@@ -170,10 +170,28 @@ export async function sendNotificationMultipleServerDetails(servers, userThumbUr
     actions.push({
       type: MessageActionType.BUTTON,
       text: 'Get Sessions',
-      msg: '/plex sessions ' + server.name,
+      msg: '/plex-sessions ' + server.name,
       msg_in_chat_window: true,
       msg_processing_type: MessageProcessingType.RespondWithMessage,
     });
+
+    actions.push({
+      type: MessageActionType.BUTTON,
+      text: 'Get Libraries',
+      msg: '/plex-libraries ' + server.name,
+      msg_in_chat_window: true,
+      msg_processing_type: MessageProcessingType.RespondWithMessage,
+    });
+
+    if (server.owned) {
+      actions.push({
+        type: MessageActionType.BUTTON,
+        text: 'Scan All Libraries',
+        msg: '/plex-scan ' + server.name + ' all',
+        msg_in_chat_window: true,
+        msg_processing_type: MessageProcessingType.RespondWithMessage,
+      });
+    }
 
     attachments.push({
       collapsed: false,
@@ -472,6 +490,82 @@ export async function sendDevices(devices, read: IRead, modify: IModify, user: I
       title: {
         value: device.name + ' (' + device.id + ')',
         link: 'https://app.plex.tv/desktop#!/settings/devices/all',
+      },
+      actions,
+      actionButtonsAlignment: MessageActionButtonsAlignment.HORIZONTAL,
+      fields,
+      // text,
+    });
+  }
+
+  await sendNotificationMultipleAttachments(attachments, read, modify, user, room);
+}
+
+export async function sendLibraries(libraries, server, read: IRead, modify: IModify, user: IUser, room: IRoom): Promise<void> {
+  const attachments = new Array<IMessageAttachment>();
+  // Initial attachment for results count
+  attachments.push({
+    collapsed: false,
+    color: '#00CE00',
+    title: {
+      value: 'Results (' + libraries.length + ')',
+    },
+  });
+
+  // tslint:disable-next-line:prefer-for-of
+  for (let x = 0; x < libraries.length; x++) {
+    const library = libraries[x];
+
+    const libraryLink = 'https://app.plex.tv/desktop#!/server/' + server.machineId + '?key=%2Flibrary%2Fsections%2F' + library.key;
+
+    const fields = new Array();
+
+    fields.push({
+      short: true,
+      title: 'Type',
+      value: library.type.charAt(0).toUpperCase() + library.type.substring(1, library.type.length),
+    });
+    fields.push({
+      short: true,
+      title: 'Sync Allowed',
+      value: library.allowSync,
+    });
+    fields.push({
+      short: true,
+      title: 'Currently Refreshing?',
+      value: library.refreshing,
+    });
+
+    // Wanted to do actions for request, but can't pass tokens or headers, just urls...
+    // TODO: Revisit when the API has matured and allows for complex HTTP requests with Bearer * headers.
+    const actions = new Array<IMessageAction>();
+
+    actions.push({
+      type: MessageActionType.BUTTON,
+      url: libraryLink,
+      text: 'View Library',
+      msg_in_chat_window: false,
+      msg_processing_type: MessageProcessingType.SendMessage,
+    });
+
+    if (server.owned) {
+      actions.push({
+        type: MessageActionType.BUTTON,
+        text: 'Scan Library',
+        msg: '/plex-scan ' + server.name + ' ' + library.key,
+        msg_in_chat_window: true,
+        msg_processing_type: MessageProcessingType.RespondWithMessage,
+      });
+    }
+
+    // let text = '';
+
+    attachments.push({
+      collapsed: false,
+      color: '#e4a00e',
+      title: {
+        value: library.title,
+        link: libraryLink,
       },
       actions,
       actionButtonsAlignment: MessageActionButtonsAlignment.HORIZONTAL,

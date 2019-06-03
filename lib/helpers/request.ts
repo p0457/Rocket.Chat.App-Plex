@@ -38,9 +38,10 @@ export async function getDataFromServer(serverName: string, serverEndpoint: stri
         const headers = defaultHeaders;
         headers['X-Plex-Token'] = token;
         const response = await http.get(url, {headers, params});
-        if (response && response.statusCode === 200 && response.content) {
+        if (response && response.statusCode === 200) {
           return {
             serverChosen,
+            statusCode: response.statusCode,
             content: response.content,
           };
         } else if (response.statusCode === 400) {

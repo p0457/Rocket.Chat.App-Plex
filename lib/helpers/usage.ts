@@ -44,4 +44,9 @@ export default {
     usage: '`/plex-scan [SERVER NAME] [LIBRARY KEY|all]`',
     description: 'Scans the library for the Plex Server name provided (can be a partial name)',
   },
+  playlists: {
+    command: 'plex-playlists',
+    usage: '`/plex-playlists [SERVER NAME]`',
+    description: 'Shows the playlists for the Plex Server name provided (can be a partial name)',
+  },
 };

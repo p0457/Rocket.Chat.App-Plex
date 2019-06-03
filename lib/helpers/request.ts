@@ -57,8 +57,9 @@ export async function getDataFromServer(serverName: string, serverEndpoint: stri
       return;
     }
   } catch (e) {
+    console.log('Error getting data for server!', e);
     // tslint:disable-next-line:max-line-length
-    await msgHelper.sendNotification('Error getting Sessions for server!', read, modify, context.getSender(), context.getRoom());
+    await msgHelper.sendNotification('Error getting data for server!', read, modify, context.getSender(), context.getRoom());
     return;
   }
 }

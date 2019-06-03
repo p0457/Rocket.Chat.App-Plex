@@ -4,6 +4,7 @@ import { IRoom } from '@rocket.chat/apps-engine/definition/rooms';
 import { IUser } from '@rocket.chat/apps-engine/definition/users';
 import { AppPersistence } from '../persistence';
 import { formatBytes } from './bytesConverter';
+import { secondsToString } from './timeConverter';
 import usage from './usage';
 
 export async function sendNotification(text: string, read: IRead, modify: IModify, user: IUser, room: IRoom): Promise<void> {
@@ -179,6 +180,14 @@ export async function sendNotificationMultipleServerDetails(servers, userThumbUr
       type: MessageActionType.BUTTON,
       text: 'Get Libraries',
       msg: '/plex-libraries ' + server.name + ' ',
+      msg_in_chat_window: true,
+      msg_processing_type: MessageProcessingType.RespondWithMessage,
+    });
+
+    actions.push({
+      type: MessageActionType.BUTTON,
+      text: 'Get Playlists',
+      msg: '/plex-playlists ' + server.name + ' ',
       msg_in_chat_window: true,
       msg_processing_type: MessageProcessingType.RespondWithMessage,
     });
@@ -571,6 +580,70 @@ export async function sendLibraries(libraries, server, read: IRead, modify: IMod
       actionButtonsAlignment: MessageActionButtonsAlignment.HORIZONTAL,
       fields,
       // text,
+    });
+  }
+
+  await sendNotificationMultipleAttachments(attachments, read, modify, user, room);
+}
+
+export async function sendPlaylists(server, playlists, query, read: IRead, modify: IModify, user: IUser, room: IRoom): Promise<void> {
+  const attachments = new Array<IMessageAttachment>();
+  // Initial attachment for results count
+  attachments.push({
+    collapsed: false,
+    color: '#00CE00',
+    title: {
+      value: 'Results (' + playlists.length + ')',
+    },
+    text: '*Query: *`' + query + '`',
+  });
+
+  // tslint:disable-next-line:prefer-for-of
+  for (let x = 0; x < playlists.length; x++) {
+    const playlist = playlists[x];
+
+    // tslint:disable-next-line:max-line-length
+    const metadataLink = 'https://app.plex.tv/desktop#!/server/' + server.machineId + '/playlist?key=/playlists/' + playlist.ratingKey + '&context=content.playlists';
+
+    // Wanted to do actions for request, but can't pass tokens or headers, just urls...
+    // TODO: Revisit when the API has matured and allows for complex HTTP requests with Bearer * headers.
+    const actions = new Array<IMessageAction>();
+
+    actions.push({
+      type: MessageActionType.BUTTON,
+      url: metadataLink,
+      text: 'View on Plex',
+      msg_in_chat_window: false,
+      msg_processing_type: MessageProcessingType.SendMessage,
+    });
+
+    const fields = new Array();
+
+    fields.push({
+      short: true,
+      title: 'Type',
+      value: playlist.playlistType.charAt(0).toUpperCase() + playlist.playlistType.substring(1, playlist.playlistType.length),
+    });
+    fields.push({
+      short: true,
+      title: 'Duration',
+      value: secondsToString(playlist.duration),
+    });
+
+    // TODO: Add action to play
+
+    // let text = '';
+
+    attachments.push({
+      collapsed: playlists.length < 5 ? false : true,
+      color: '#e4a00e',
+      title: {
+        value: playlist.title,
+        link: metadataLink,
+      },
+      actions,
+      actionButtonsAlignment: MessageActionButtonsAlignment.HORIZONTAL,
+      fields,
     });
   }
 

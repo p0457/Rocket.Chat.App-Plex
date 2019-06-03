@@ -1,4 +1,5 @@
 import { IHttp, IModify, IPersistence, IRead } from '@rocket.chat/apps-engine/definition/accessors';
+import { MessageActionType, MessageProcessingType } from '@rocket.chat/apps-engine/definition/messages';
 import { ISlashCommand, SlashCommandContext } from '@rocket.chat/apps-engine/definition/slashcommands';
 import defaultHeaders from '../lib/helpers/defaultHeaders';
 import * as msgHelper from '../lib/helpers/messageHelper';
@@ -188,8 +189,17 @@ export class PlexLoginCommand implements ISlashCommand {
               value: 'Logged in!',
               link: 'https://app.plex.tv/desktop#!/account',
             },
+            actions: [
+              {
+                type: MessageActionType.BUTTON,
+                text: 'View Servers',
+                msg: '/plex-servers ',
+                msg_in_chat_window: true,
+                msg_processing_type: MessageProcessingType.RespondWithMessage,
+              },
+            ],
             // tslint:disable-next-line:max-line-length
-            text: '*Id: *' + userId + '\n*Uuid: *' + userUuid + '\n*Token: *' + token + '\n' + '*Server Count: *' + serversObj.length + '\nTo see servers, run `/plex servers`',
+            text: '*Id: *' + userId + '\n*Uuid: *' + userUuid + '\n*Token: *' + token + '\n' + '*Server Count: *' + serversObj.length,
           }, read, modify, context.getSender(), context.getRoom());
         } catch (e) {
           console.error('Failed to parse servers!', e);

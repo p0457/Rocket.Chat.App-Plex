@@ -162,7 +162,7 @@ export async function sendNotificationMultipleServerDetails(servers, userThumbUr
     actions.push({
       type: MessageActionType.BUTTON,
       text: 'Get On-Deck',
-      msg: '/plex-on-deck ' + server.name,
+      msg: '/plex-ondeck ' + server.name + ' ',
       msg_in_chat_window: true,
       msg_processing_type: MessageProcessingType.RespondWithMessage,
     });
@@ -170,7 +170,7 @@ export async function sendNotificationMultipleServerDetails(servers, userThumbUr
     actions.push({
       type: MessageActionType.BUTTON,
       text: 'Get Sessions',
-      msg: '/plex-sessions ' + server.name,
+      msg: '/plex-sessions ' + server.name + ' ',
       msg_in_chat_window: true,
       msg_processing_type: MessageProcessingType.RespondWithMessage,
     });
@@ -178,7 +178,7 @@ export async function sendNotificationMultipleServerDetails(servers, userThumbUr
     actions.push({
       type: MessageActionType.BUTTON,
       text: 'Get Libraries',
-      msg: '/plex-libraries ' + server.name,
+      msg: '/plex-libraries ' + server.name + ' ',
       msg_in_chat_window: true,
       msg_processing_type: MessageProcessingType.RespondWithMessage,
     });
@@ -187,7 +187,7 @@ export async function sendNotificationMultipleServerDetails(servers, userThumbUr
       actions.push({
         type: MessageActionType.BUTTON,
         text: 'Scan All Libraries',
-        msg: '/plex-scan ' + server.name + ' all',
+        msg: '/plex-scan ' + server.name + ' all ',
         msg_in_chat_window: true,
         msg_processing_type: MessageProcessingType.RespondWithMessage,
       });
@@ -552,7 +552,7 @@ export async function sendLibraries(libraries, server, read: IRead, modify: IMod
       actions.push({
         type: MessageActionType.BUTTON,
         text: 'Scan Library',
-        msg: '/plex-scan ' + server.name + ' ' + library.key,
+        msg: '/plex-scan ' + server.name + ' ' + library.key + ' ',
         msg_in_chat_window: true,
         msg_processing_type: MessageProcessingType.RespondWithMessage,
       });

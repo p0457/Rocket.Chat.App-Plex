@@ -27,14 +27,14 @@ export class PlexOnDeckCommand implements ISlashCommand {
         const actualResults = searchResultsJson.MediaContainer.Metadata;
         if (actualResults && actualResults.length > 0) {
           // tslint:disable-next-line:max-line-length
-          await msgHelper.sendMediaMetadata(responseContent.serverChosen, actualResults, serverArg + ' ondeck', read, modify, context.getSender(), context.getRoom());
+          await msgHelper.sendMediaMetadata(responseContent.serverChosen, actualResults, serverArg + ' ondeck', false, read, modify, context.getSender(), context.getRoom());
         } else {
           // tslint:disable-next-line:max-line-length
-          await msgHelper.sendMediaMetadata(responseContent.serverChosen, [], serverArg + ' ondeck', read, modify, context.getSender(), context.getRoom());
+          await msgHelper.sendMediaMetadata(responseContent.serverChosen, [], serverArg + ' ondeck', false, read, modify, context.getSender(), context.getRoom());
         }
       } else {
         // tslint:disable-next-line:max-line-length
-        await msgHelper.sendMediaMetadata(responseContent.serverChosen, [], serverArg + ' ondeck', read, modify, context.getSender(), context.getRoom());
+        await msgHelper.sendMediaMetadata(responseContent.serverChosen, [], serverArg + ' ondeck', false, read, modify, context.getSender(), context.getRoom());
       }
     } catch (e) {
       console.log('Failed to return On-Deck results!', e);

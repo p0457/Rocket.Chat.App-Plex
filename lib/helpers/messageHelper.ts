@@ -220,7 +220,7 @@ export async function sendNotificationMultipleServerDetails(servers, userThumbUr
   await sendNotificationMultipleAttachments(attachments, read, modify, user, room);
 }
 
-export async function sendMediaMetadata(server, metadatas, query, read: IRead, modify: IModify, user: IUser, room: IRoom): Promise<void> {
+export async function sendMediaMetadata(server, metadatas, query, isSessionsCall: boolean, read: IRead, modify: IModify, user: IUser, room: IRoom): Promise<void> {
   const attachments = new Array<IMessageAttachment>();
   // Initial attachment for results count
   attachments.push({
@@ -235,12 +235,6 @@ export async function sendMediaMetadata(server, metadatas, query, read: IRead, m
   // tslint:disable-next-line:prefer-for-of
   for (let x = 0; x < metadatas.length; x++) {
     const metadata = metadatas[x];
-
-    const fields = new Array();
-
-    // Wanted to do actions for request, but can't pass tokens or headers, just urls...
-    // TODO: Revisit when the API has matured and allows for complex HTTP requests with Bearer * headers.
-    const actions = new Array<IMessageAction>();
 
     let thumbnailUrl = '';
 
@@ -271,6 +265,10 @@ export async function sendMediaMetadata(server, metadatas, query, read: IRead, m
 
     const metadataLink = 'https://app.plex.tv/desktop#!/server/' + server.machineId + '/details?key=' + metadata.key;
 
+    // Wanted to do actions for request, but can't pass tokens or headers, just urls...
+    // TODO: Revisit when the API has matured and allows for complex HTTP requests with Bearer * headers.
+    const actions = new Array<IMessageAction>();
+
     actions.push({
       type: MessageActionType.BUTTON,
       url: metadataLink,
@@ -278,6 +276,8 @@ export async function sendMediaMetadata(server, metadatas, query, read: IRead, m
       msg_in_chat_window: false,
       msg_processing_type: MessageProcessingType.SendMessage,
     });
+
+    const fields = new Array();
 
     if (metadata.Genre && Array.isArray(metadata.Genre) && metadata.Genre.length > 0) {
       let genreText = '';
@@ -716,6 +716,10 @@ export async function sendResources(resources, read: IRead, modify: IModify, use
       });
     }
 
+    const numberOfConnections = resource.connections.length;
+
+    const text = `*Connections: *${numberOfConnections}`;
+
     // TODO: actions for playback and stuff?
 
     attachments.push({
@@ -725,6 +729,7 @@ export async function sendResources(resources, read: IRead, modify: IModify, use
         value: resource.name,
       },
       fields,
+      text,
     });
   }
 

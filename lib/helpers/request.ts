@@ -447,8 +447,26 @@ export function parseResources(resourcesXmlResponse: string) {
         });
       }
 
+      const relay2Regex = new RegExp('local=\"(.*?)\"', 'mgs');
+      let relay2 = false;
+      // tslint:disable-next-line:no-conditional-assignment
+      while ((m = relay2Regex.exec(connection)) !== null) {
+        // This is necessary to avoid infinite loops with zero-width matches
+        if (m.index === relay2Regex.lastIndex) {
+          relay2Regex.lastIndex++;
+        }
+        // The result can be accessed through the `m`-variable.
+        m.forEach((match, groupIndex) => {
+          if (groupIndex === 1) {
+            if (match === '1') {
+              relay2 = true;
+            }
+          }
+        });
+      }
+
       const connectionObj = {
-        protocol, address, port, uri, local,
+        protocol, address, port, uri, local, relay: relay2,
       };
 
       resource.connections.push(connectionObj);

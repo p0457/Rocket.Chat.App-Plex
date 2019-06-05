@@ -62,14 +62,14 @@ export class PlexSearchCommand implements ISlashCommand {
         const actualResults = searchResultsJson.MediaContainer.Metadata;
         if (actualResults && actualResults.length > 0) {
           // tslint:disable-next-line:max-line-length
-          await msgHelper.sendMediaMetadata(responseContent.serverChosen, actualResults, queryDisplay, read, modify, context.getSender(), context.getRoom());
+          await msgHelper.sendMediaMetadata(responseContent.serverChosen, actualResults, queryDisplay, false, read, modify, context.getSender(), context.getRoom());
         } else {
           // tslint:disable-next-line:max-line-length
-          await msgHelper.sendMediaMetadata(responseContent.serverChosen, [], queryDisplay, read, modify, context.getSender(), context.getRoom());
+          await msgHelper.sendMediaMetadata(responseContent.serverChosen, [], queryDisplay, false, read, modify, context.getSender(), context.getRoom());
         }
       } else {
         // tslint:disable-next-line:max-line-length
-        await msgHelper.sendMediaMetadata(responseContent.serverChosen, [], queryDisplay, read, modify, context.getSender(), context.getRoom());
+        await msgHelper.sendMediaMetadata(responseContent.serverChosen, [], queryDisplay, false, read, modify, context.getSender(), context.getRoom());
       }
     } catch (e) {
       console.log('Failed to return search results!', e);

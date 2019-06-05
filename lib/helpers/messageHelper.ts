@@ -649,3 +649,84 @@ export async function sendPlaylists(server, playlists, query, read: IRead, modif
 
   await sendNotificationMultipleAttachments(attachments, read, modify, user, room);
 }
+
+export async function sendResources(resources, read: IRead, modify: IModify, user: IUser, room: IRoom): Promise<void> {
+  const attachments = new Array<IMessageAttachment>();
+
+  // tslint:disable-next-line:prefer-for-of
+  for (let x = 0; x < resources.length; x++) {
+    const resource = resources[x];
+
+    const fields = new Array();
+
+    if (resource.product && resource.productVersion) {
+      fields.push({
+        short: true,
+        title: 'Product',
+        value: `${resource.product}\nv${resource.productVersion}`,
+      });
+    }
+    if (resource.platform && resource.platformVersion) {
+      fields.push({
+        short: true,
+        title: 'Platform',
+        value: `${resource.platform}\nv${resource.platformVersion}`,
+      });
+    }
+    if (resource.device) {
+      fields.push({
+        short: true,
+        title: 'Device',
+        value: `${resource.device}`,
+      });
+    }
+    if (resource.owned !== undefined) {
+      fields.push({
+        short: true,
+        title: 'Owned?',
+        value: `${resource.owned}`,
+      });
+    }
+    if (resource.httpsRequired !== undefined) {
+      fields.push({
+        short: true,
+        title: 'HTTPS required?',
+        value: `${resource.httpsRequired}`,
+      });
+    }
+    if (resource.relay !== undefined) {
+      fields.push({
+        short: true,
+        title: 'Is Relay?',
+        value: `${resource.relay}`,
+      });
+    }
+    if (resource.dnsRebindingProtectionRegex !== undefined) {
+      fields.push({
+        short: true,
+        title: 'DNS Rebinding Protection?',
+        value: `${resource.dnsRebindingProtectionRegex}`,
+      });
+    }
+    if (resource.presence !== undefined) {
+      fields.push({
+        short: true,
+        title: 'Presence?',
+        value: `${resource.presence}`,
+      });
+    }
+
+    // TODO: actions for playback and stuff?
+
+    attachments.push({
+      collapsed: false,
+      color: '#e4a00e',
+      title: {
+        value: resource.name,
+      },
+      fields,
+    });
+  }
+
+  await sendNotificationMultipleAttachments(attachments, read, modify, user, room);
+}

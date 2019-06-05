@@ -24,5 +24,7 @@
   "slashcommand_scan_params": "[SERVERNAME] [LIBRARY KEY|all]",
   "slashcommand_scan_description": "Scans the library for the Plex Server name provided (can be a partial name)",
   "slashcommand_playlist_params": "[SERVERNAME]",
-  "slashcommand_playlist_description": "Shows the playlists for the Plex Server name provided (can be a partial name)"
+  "slashcommand_playlist_description": "Shows the playlists for the Plex Server name provided (can be a partial name)",
+  "slashcommand_resources_params": "",
+  "slashcommand_resources_description": "Shows the resources for your Plex Account"
 }

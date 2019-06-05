@@ -49,4 +49,9 @@ export default {
     usage: '`/plex-playlists [SERVER NAME]`',
     description: 'Shows the playlists for the Plex Server name provided (can be a partial name)',
   },
+  resources: {
+    command: 'plex-resources',
+    usage: '`/plex-resources',
+    description: 'Shows the resources for your Plex Account',
+  },
 };

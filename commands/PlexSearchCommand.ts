@@ -1,8 +1,10 @@
 import { IHttp, IModify, IPersistence, IRead } from '@rocket.chat/apps-engine/definition/accessors';
 import { ISlashCommand, SlashCommandContext } from '@rocket.chat/apps-engine/definition/slashcommands';
+import defaultHeaders from '../lib/helpers/defaultHeaders';
 import { getMediaTypes } from '../lib/helpers/mediaTypes';
 import * as msgHelper from '../lib/helpers/messageHelper';
 import * as request from '../lib/helpers/request';
+import { AppPersistence } from '../lib/persistence';
 import { PlexApp } from '../PlexApp';
 
 export class PlexSearchCommand implements ISlashCommand {
@@ -55,21 +57,24 @@ export class PlexSearchCommand implements ISlashCommand {
 
     const responseContent = await request.getDataFromServer(serverArg, '/search', context, read, modify, http, persis, params);
 
+    let resources = new Array();
+
     try {
       const queryDisplay = serverArg + ' ' + (type ? typeArg + ' ' : 'all ') + searchArg;
       const searchResultsJson = JSON.parse(responseContent.content);
       if (searchResultsJson && searchResultsJson.MediaContainer && searchResultsJson.MediaContainer.size) {
         const actualResults = searchResultsJson.MediaContainer.Metadata;
+        resources = await request.getResources(true, context, read, modify, http, persis);
         if (actualResults && actualResults.length > 0) {
           // tslint:disable-next-line:max-line-length
-          await msgHelper.sendMediaMetadata(responseContent.serverChosen, actualResults, queryDisplay, false, read, modify, context.getSender(), context.getRoom());
+          await msgHelper.sendMediaMetadata(responseContent.serverChosen, actualResults, queryDisplay, false, resources, read, modify, context.getSender(), context.getRoom());
         } else {
           // tslint:disable-next-line:max-line-length
-          await msgHelper.sendMediaMetadata(responseContent.serverChosen, [], queryDisplay, false, read, modify, context.getSender(), context.getRoom());
+          await msgHelper.sendMediaMetadata(responseContent.serverChosen, [], queryDisplay, false, resources, read, modify, context.getSender(), context.getRoom());
         }
       } else {
         // tslint:disable-next-line:max-line-length
-        await msgHelper.sendMediaMetadata(responseContent.serverChosen, [], queryDisplay, false, read, modify, context.getSender(), context.getRoom());
+        await msgHelper.sendMediaMetadata(responseContent.serverChosen, [], queryDisplay, false, resources, read, modify, context.getSender(), context.getRoom());
       }
     } catch (e) {
       console.log('Failed to return search results!', e);

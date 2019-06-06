@@ -220,7 +220,7 @@ export async function sendNotificationMultipleServerDetails(servers, userThumbUr
   await sendNotificationMultipleAttachments(attachments, read, modify, user, room);
 }
 
-export async function sendMediaMetadata(server, metadatas, query, isSessionsCall: boolean, read: IRead, modify: IModify, user: IUser, room: IRoom): Promise<void> {
+export async function sendMediaMetadata(server, metadatas, query, isSessionsCall: boolean, resources, read: IRead, modify: IModify, user: IUser, room: IRoom): Promise<void> {
   const attachments = new Array<IMessageAttachment>();
   // Initial attachment for results count
   attachments.push({
@@ -277,35 +277,47 @@ export async function sendMediaMetadata(server, metadatas, query, isSessionsCall
       msg_processing_type: MessageProcessingType.SendMessage,
     });
 
-    if (isSessionsCall === true) {
-      const serverName = server.name;
-      const resourceId = metadata.Player.machineIdentifier;
-      const mediaId = metadata.ratingKey;
-      const playMsg = `/plex-playback play ${serverName} ${resourceId} ${mediaId}`;
-      const pauseMsg = `/plex-playback pause ${serverName} ${resourceId}`;
-      const stopMsg = `/plex-playback stop ${serverName} ${resourceId}`;
-      const rewindMsg = `/plex-playback rewind ${serverName} ${resourceId}`;
-      const skipBackMsg = `/plex-playback skip-back ${serverName} ${resourceId}`;
-      const fastForwardMsg = `/plex-playback fast-forward ${serverName} ${resourceId}`;
-      const skipForwardMsg = `/plex-playback skip-forward ${serverName} ${resourceId}`;
-      // TODO: test
-      actions.push({
-        type: MessageActionType.BUTTON,
-        text: 'Playback: Play',
-        msg: playMsg,
-        msg_in_chat_window: true,
-        msg_processing_type: MessageProcessingType.RespondWithMessage,
+    const serverName = server.name;
+    const resourceId = (metadata && metadata.Player ? metadata.Player.machineIdentifier : '');
+    let mediaType = metadata.type;
+    if (mediaType === 'episode' || mediaType === 'movie') {
+      mediaType = 'video';
+    }
+    const mediaId = metadata.ratingKey;
+    const playMsg = `/plex-playback play ${serverName} ${resourceId} ${mediaType} ${mediaId}`;
+    const pauseMsg = `/plex-playback pause ${serverName} ${resourceId} ${mediaType}`;
+    const stopMsg = `/plex-playback stop ${serverName} ${resourceId} ${mediaType}`;
+    const rewindMsg = `/plex-playback rewind ${serverName} ${resourceId} ${mediaType}`;
+    const skipBackMsg = `/plex-playback skip-back ${serverName} ${resourceId} ${mediaType}`;
+    const fastForwardMsg = `/plex-playback fast-forward ${serverName} ${resourceId} ${mediaType}`;
+    const skipForwardMsg = `/plex-playback skip-forward ${serverName} ${resourceId} ${mediaType}`;
+    if (resources && resources.length > 0 && isSessionsCall === false) {
+      resources.forEach((resource) => {
+        if (resource.owned === true && resource.hasAppropriateConnection) {
+          const tempResourceId = resource.clientIdentifier;
+          const playMsgForResource = `/plex-playback play ${serverName} ${tempResourceId} ${mediaType} ${mediaId}`;
+          actions.push({
+            type: MessageActionType.BUTTON,
+            text: 'Play on ' + resource.name,
+            msg: playMsgForResource,
+            msg_in_chat_window: true,
+            msg_processing_type: MessageProcessingType.RespondWithMessage,
+          });
+        }
       });
+    }
+
+    if (isSessionsCall === true) {
       actions.push({
         type: MessageActionType.BUTTON,
-        text: 'Playback: Pause',
+        text: 'Pause',
         msg: pauseMsg,
         msg_in_chat_window: true,
         msg_processing_type: MessageProcessingType.RespondWithMessage,
       });
       actions.push({
         type: MessageActionType.BUTTON,
-        text: 'Playback: Stop',
+        text: 'Stop',
         msg: stopMsg,
         msg_in_chat_window: true,
         msg_processing_type: MessageProcessingType.RespondWithMessage,

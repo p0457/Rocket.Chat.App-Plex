@@ -15,7 +15,7 @@ export class PlexPlaybackCommand implements ISlashCommand {
   public constructor(private readonly app: PlexApp) {}
 
   public async executor(context: SlashCommandContext, read: IRead, modify: IModify, http: IHttp, persis: IPersistence): Promise<void> {
-    const [actionArg, serverName, resourceId, mediaId] = context.getArguments();
+    const [actionArg, serverName, resourceId, mediaType, mediaId] = context.getArguments();
 
     if (!actionArg) {
       await msgHelper.sendUsage(read, modify, context.getSender(), context.getRoom(), this.command, 'Action not provided!');
@@ -31,6 +31,11 @@ export class PlexPlaybackCommand implements ISlashCommand {
 
     if (!resourceId) {
       await msgHelper.sendUsage(read, modify, context.getSender(), context.getRoom(), this.command, 'Resource Identifier not provided!');
+      return;
+    }
+
+    if (!mediaType) {
+      await msgHelper.sendUsage(read, modify, context.getSender(), context.getRoom(), this.command, 'Media Type not provided!');
       return;
     }
 
@@ -120,27 +125,13 @@ export class PlexPlaybackCommand implements ISlashCommand {
     }
 
     // Find resource
-    const resourcesUrl = 'https://plex.tv/api/resources';
-
-    const headers = defaultHeaders;
-    headers['X-Plex-Token'] = token;
-
-    const response = await http.get(resourcesUrl, {
-      headers,
-      params: {
-        includeHttps: '1',
-        includeRelay: '1',
-      },
-    });
+    const resources = await request.getResources(false, context, read, modify, http, persis);
+    if (resources && Array.isArray(resources)) {
+      await msgHelper.sendResources(resources, read, modify, context.getSender(), context.getRoom());
+      return;
+    }
 
     try {
-      if (!response || !response.content || response.statusCode !== 200) {
-        // tslint:disable-next-line:max-line-length
-        await msgHelper.sendNotification('Failed to parse response!', read, modify, context.getSender(), context.getRoom());
-        return;
-      }
-      const xmlResponse = response.content;
-      const resources = request.parseResources(xmlResponse);
       if (Array.isArray(resources)) {
         const resourceChosen = resources.find((resource) => {
           return resource.clientIdentifier === resourceId;
@@ -181,6 +172,8 @@ export class PlexPlaybackCommand implements ISlashCommand {
         const resourceClientIdentifier = resourceChosen.clientIdentifier;
 
         const playbackUrl = `${connectionUrl}/player/playback/${urlSub}`;
+
+        const headers = defaultHeaders;
         // tslint:disable-next-line:no-string-literal
         headers['commandID'] = commandId;
         headers['X-Plex-Target-Client-Identifier'] = resourceClientIdentifier;
@@ -188,16 +181,21 @@ export class PlexPlaybackCommand implements ISlashCommand {
         headers['machineIdentifier'] = serverChosen.machineId;
 
         const playbackParams = {
+          type: mediaType,
           offset: '0',
-          key: (action === 'play' ? `/library/metadata/${mediaId}` : ''),
+          commandID: commandId,
         };
+        playbackParams['X-Plex-Target-Client-Identifier'] = resourceClientIdentifier;
+        if (action === 'play') {
+          // tslint:disable-next-line:no-string-literal
+          playbackParams['key'] = `/library/metadata/${mediaId}`;
+          // tslint:disable-next-line:no-string-literal
+          playbackParams['machineIdentifier'] = serverChosen.machineId;
+        }
 
         const playbackResponse = await http.get(playbackUrl, {
           headers, params: playbackParams,
         });
-
-        console.log('****1', playbackResponse);
-        console.log('****1.1', headers);
 
         if (!playbackResponse || playbackResponse.statusCode !== 200) {
           // tslint:disable-next-line:max-line-length
@@ -216,10 +214,9 @@ export class PlexPlaybackCommand implements ISlashCommand {
             actualResults = actualResults.find((session) => {
               return session.Player.machineIdentifier === resourceClientIdentifier;
             });
-            console.log('****2', actualResults);
             if (actualResults && actualResults.length > 0) {
               // tslint:disable-next-line:max-line-length
-              await msgHelper.sendMediaMetadata(sessionContent.serverChosen, actualResults, serverName + ' sessions', true, read, modify, context.getSender(), context.getRoom());
+              await msgHelper.sendMediaMetadata(sessionContent.serverChosen, actualResults, serverName + ' sessions', true, resources, read, modify, context.getSender(), context.getRoom());
             } else {
               await msgHelper.sendNotification('Failed to return Session results!', read, modify, context.getSender(), context.getRoom());
             }

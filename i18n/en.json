@@ -26,5 +26,7 @@
   "slashcommand_playlist_params": "[SERVERNAME]",
   "slashcommand_playlist_description": "Shows the playlists for the Plex Server name provided (can be a partial name)",
   "slashcommand_resources_params": "",
-  "slashcommand_resources_description": "Shows the resources for your Plex Account"
+  "slashcommand_resources_description": "Shows the resources for your Plex Account",
+  "slashcommand_playback_params": "TODO:",
+  "slashcommand_playback_description": "Control playback on your Plex sessions"
 }

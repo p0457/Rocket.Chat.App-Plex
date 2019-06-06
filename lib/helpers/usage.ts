@@ -54,4 +54,9 @@ export default {
     usage: '`/plex-resources',
     description: 'Shows the resources for your Plex Account',
   },
+  playback: {
+    command: 'plex-playback',
+    usage: '`/plex-playback TODO:`',
+    description: 'Control playback on your Plex sessions',
+  },
 };

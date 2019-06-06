@@ -9,6 +9,7 @@ import { PlexDevicesCommand } from './commands/PlexDevicesCommand';
 import { PlexLibrariesCommand } from './commands/PlexLibrariesCommand';
 import { PlexLoginCommand } from './commands/PlexLoginCommand';
 import { PlexOnDeckCommand } from './commands/PlexOnDeckCommand';
+import { PlexPlaybackCommand } from './commands/PlexPlaybackCommand';
 import { PlexPlaylistsCommand } from './commands/PlexPlaylistsCommand';
 import { PlexResourcesCommand } from './commands/PlexResourcesCommand';
 import { PlexScanCommand } from './commands/PlexScanCommand';
@@ -55,5 +56,6 @@ export class PlexApp extends App {
       await configuration.slashCommands.provideSlashCommand(new PlexScanCommand(this));
       await configuration.slashCommands.provideSlashCommand(new PlexPlaylistsCommand(this));
       await configuration.slashCommands.provideSlashCommand(new PlexResourcesCommand(this));
+      // await configuration.slashCommands.provideSlashCommand(new PlexPlaybackCommand(this));
     }
 }

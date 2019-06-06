@@ -5,6 +5,7 @@ import * as msgHelper from '../lib/helpers/messageHelper';
 import * as request from '../lib/helpers/request';
 import { AppPersistence } from '../lib/persistence';
 import { PlexApp } from '../PlexApp';
+import { MessageActionType, MessageProcessingType } from '@rocket.chat/apps-engine/definition/messages';
 
 export class PlexPlaybackCommand implements ISlashCommand {
   public command = 'plex-playback';
@@ -201,31 +202,24 @@ export class PlexPlaybackCommand implements ISlashCommand {
           return;
         }
 
-        await msgHelper.sendNotification('Successfully executed playback action `' + action + '`!', read, modify, context.getSender(), context.getRoom());
+        await msgHelper.sendNotificationSingleAttachment({
+          collapsed: false,
+          color: '#e4a00e',
+          title: {
+            value: 'Successfully executed playback action!',
+          },
+          actions: [
+            {
+              type: MessageActionType.BUTTON,
+              text: 'Get Sessions',
+              msg: '/plex-sessions ' + serverChosen.name,
+              msg_in_chat_window: true,
+              msg_processing_type: MessageProcessingType.RespondWithMessage,
+            },
+          ],
+        }, read, modify, context.getSender(), context.getRoom());
 
-        const sessionContent = await request.getDataFromServer(serverName, '/status/sessions', context, read, modify, http, persis);
-
-        try {
-          const sessionResults = JSON.parse(sessionContent.content);
-          if (sessionResults && sessionResults.MediaContainer && sessionResults.MediaContainer.size) {
-            let actualResults = sessionResults.MediaContainer.Metadata;
-            actualResults = actualResults.find((session) => {
-              return session.Player.machineIdentifier === resourceClientIdentifier;
-            });
-            if (actualResults && actualResults.length > 0) {
-              // tslint:disable-next-line:max-line-length
-              await msgHelper.sendMediaMetadata(sessionContent.serverChosen, actualResults, serverName + ' sessions', true, resources, read, modify, context.getSender(), context.getRoom());
-            } else {
-              await msgHelper.sendNotification('Failed to return Session results!', read, modify, context.getSender(), context.getRoom());
-            }
-          } else {
-            await msgHelper.sendNotification('Failed to return Session results!', read, modify, context.getSender(), context.getRoom());
-          }
-        } catch (e) {
-          console.log('Failed to return Session results!', e);
-          await msgHelper.sendNotification('Failed to return Session results!', read, modify, context.getSender(), context.getRoom());
-        }
-
+        return;
       }
     } catch (e) {
       console.log('Failed to parse response!', e);

@@ -15,6 +15,48 @@ export class PlexPlaybackCommand implements ISlashCommand {
   public constructor(private readonly app: PlexApp) {}
 
   public async executor(context: SlashCommandContext, read: IRead, modify: IModify, http: IHttp, persis: IPersistence): Promise<void> {
-    console.log('yay');
+    const [actionArg] = context.getArguments();
+
+    if (!actionArg) {
+      await msgHelper.sendUsage(read, modify, context.getSender(), context.getRoom(), this.command, 'Action not provided!');
+      return;
+    }
+
+    const action = actionArg.toLowerCase();
+
+    let urlSub = '';
+    let commandId = '';
+    if (action === 'play') {
+      urlSub = 'playMedia';
+      commandId = '1';
+    } else if (action === 'pause') {
+      urlSub = 'pause';
+      commandId = '10';
+    } else if (action === 'stop') {
+      urlSub = 'stop';
+      commandId = '10';
+    } else if (action === 'rewind') {
+      urlSub = 'seekTo';
+      commandId = '2';
+      // TODO: Provide offset?
+    } else if (action === 'skip-back') {
+      urlSub = 'skipPrevious';
+      commandId = '5';
+    } else if (action === 'fast-forward') {
+      urlSub = 'seekTo';
+      commandId = '6';
+      // TODO: Provide offset?
+    } else if (action === 'skip-forward') {
+      urlSub = 'skipNext';
+      commandId = '8';
+    } else {
+      await msgHelper.sendUsage(read, modify, context.getSender(), context.getRoom(), this.command, 'Invalid action!');
+      return;
+    }
+
+    const serverAccessUrl = ''; // TODO: get this
+    const url = `${serverAccessUrl}/player/playback/${urlSub}`;
+
+    const targetIdentifier = ''; // TODO: get this
   }
 }

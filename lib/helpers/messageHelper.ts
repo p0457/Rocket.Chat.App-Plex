@@ -264,6 +264,7 @@ export async function sendMediaMetadata(server, metadatas, query, isSessionsCall
     }
 
     const metadataLink = 'https://app.plex.tv/desktop#!/server/' + server.machineId + '/details?key=' + metadata.key;
+    const serverName = server.name;
 
     // Wanted to do actions for request, but can't pass tokens or headers, just urls...
     // TODO: Revisit when the API has matured and allows for complex HTTP requests with Bearer * headers.
@@ -277,37 +278,35 @@ export async function sendMediaMetadata(server, metadatas, query, isSessionsCall
       msg_processing_type: MessageProcessingType.SendMessage,
     });
 
-    const serverName = server.name;
+    // Playback
     const resourceId = (metadata && metadata.Player ? metadata.Player.machineIdentifier : '');
     let mediaType = metadata.type;
     if (mediaType === 'episode' || mediaType === 'movie') {
       mediaType = 'video';
     }
-    const mediaId = metadata.ratingKey;
-    const playMsg = `/plex-playback play ${serverName} ${resourceId} ${mediaType} ${mediaId}`;
-    const pauseMsg = `/plex-playback pause ${serverName} ${resourceId} ${mediaType}`;
-    const stopMsg = `/plex-playback stop ${serverName} ${resourceId} ${mediaType}`;
-    const rewindMsg = `/plex-playback rewind ${serverName} ${resourceId} ${mediaType}`;
-    const skipBackMsg = `/plex-playback skip-back ${serverName} ${resourceId} ${mediaType}`;
-    const fastForwardMsg = `/plex-playback fast-forward ${serverName} ${resourceId} ${mediaType}`;
-    const skipForwardMsg = `/plex-playback skip-forward ${serverName} ${resourceId} ${mediaType}`;
     if (resources && resources.length > 0 && isSessionsCall === false) {
+      const mediaId = metadata.ratingKey;
       resources.forEach((resource) => {
         if (resource.owned === true && resource.hasAppropriateConnection) {
           const tempResourceId = resource.clientIdentifier;
-          const playMsgForResource = `/plex-playback play ${serverName} ${tempResourceId} ${mediaType} ${mediaId}`;
+          const playMsg = `/plex-playback play ${serverName} ${tempResourceId} ${mediaType} ${mediaId}`;
           actions.push({
             type: MessageActionType.BUTTON,
             text: 'Play on ' + resource.name,
-            msg: playMsgForResource,
+            msg: playMsg,
             msg_in_chat_window: true,
             msg_processing_type: MessageProcessingType.RespondWithMessage,
           });
         }
       });
     }
-
     if (isSessionsCall === true) {
+      const pauseMsg = `/plex-playback pause ${serverName} ${resourceId} ${mediaType}`;
+      const stopMsg = `/plex-playback stop ${serverName} ${resourceId} ${mediaType}`;
+      const rewindMsg = `/plex-playback rewind ${serverName} ${resourceId} ${mediaType}`;
+      const skipBackMsg = `/plex-playback skip-back ${serverName} ${resourceId} ${mediaType}`;
+      const fastForwardMsg = `/plex-playback fast-forward ${serverName} ${resourceId} ${mediaType}`;
+      const skipForwardMsg = `/plex-playback skip-forward ${serverName} ${resourceId} ${mediaType}`;
       actions.push({
         type: MessageActionType.BUTTON,
         text: 'Pause',
@@ -324,6 +323,7 @@ export async function sendMediaMetadata(server, metadatas, query, isSessionsCall
       });
     }
 
+    // FIELDS
     const fields = new Array();
 
     if (metadata.Genre && Array.isArray(metadata.Genre) && metadata.Genre.length > 0) {
@@ -457,9 +457,10 @@ export async function sendMediaMetadata(server, metadatas, query, isSessionsCall
       });
     }
 
+    // TEXT
     let text = '';
-    if (server.name) {
-      text += '*Server: *' + server.name + '\n';
+    if (serverName) {
+      text += '*Server: *' + serverName + '\n';
     }
     if (metadata.User) {
       text += '*User: *' + metadata.User.title + '\n';

@@ -126,10 +126,6 @@ export class PlexPlaybackCommand implements ISlashCommand {
 
     // Find resource
     const resources = await request.getResources(false, context, read, modify, http, persis);
-    if (resources && Array.isArray(resources)) {
-      await msgHelper.sendResources(resources, read, modify, context.getSender(), context.getRoom());
-      return;
-    }
 
     try {
       if (Array.isArray(resources)) {

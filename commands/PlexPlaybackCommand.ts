@@ -170,6 +170,7 @@ export class PlexPlaybackCommand implements ISlashCommand {
         const playbackUrl = `${connectionUrl}/player/playback/${urlSub}`;
 
         const headers = defaultHeaders;
+        headers['X-Plex-Token'] = token;
         // tslint:disable-next-line:no-string-literal
         headers['commandID'] = commandId;
         headers['X-Plex-Target-Client-Identifier'] = resourceClientIdentifier;
@@ -194,6 +195,7 @@ export class PlexPlaybackCommand implements ISlashCommand {
         });
 
         if (!playbackResponse || playbackResponse.statusCode !== 200) {
+          console.log('Failed to execute playback action!', playbackResponse);
           // tslint:disable-next-line:max-line-length
           await msgHelper.sendNotification('Failed to execute playback action!', read, modify, context.getSender(), context.getRoom());
           return;

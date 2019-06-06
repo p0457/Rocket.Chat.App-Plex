@@ -277,6 +277,41 @@ export async function sendMediaMetadata(server, metadatas, query, isSessionsCall
       msg_processing_type: MessageProcessingType.SendMessage,
     });
 
+    if (isSessionsCall === true) {
+      const serverName = server.name;
+      const resourceId = metadata.Player.machineIdentifier;
+      const mediaId = metadata.ratingKey;
+      const playMsg = `/plex-playback play ${serverName} ${resourceId} ${mediaId}`;
+      const pauseMsg = `/plex-playback pause ${serverName} ${resourceId}`;
+      const stopMsg = `/plex-playback stop ${serverName} ${resourceId}`;
+      const rewindMsg = `/plex-playback rewind ${serverName} ${resourceId}`;
+      const skipBackMsg = `/plex-playback skip-back ${serverName} ${resourceId}`;
+      const fastForwardMsg = `/plex-playback fast-forward ${serverName} ${resourceId}`;
+      const skipForwardMsg = `/plex-playback skip-forward ${serverName} ${resourceId}`;
+      // TODO: test
+      actions.push({
+        type: MessageActionType.BUTTON,
+        text: 'Playback: Play',
+        msg: playMsg,
+        msg_in_chat_window: true,
+        msg_processing_type: MessageProcessingType.RespondWithMessage,
+      });
+      actions.push({
+        type: MessageActionType.BUTTON,
+        text: 'Playback: Pause',
+        msg: pauseMsg,
+        msg_in_chat_window: true,
+        msg_processing_type: MessageProcessingType.RespondWithMessage,
+      });
+      actions.push({
+        type: MessageActionType.BUTTON,
+        text: 'Playback: Stop',
+        msg: stopMsg,
+        msg_in_chat_window: true,
+        msg_processing_type: MessageProcessingType.RespondWithMessage,
+      });
+    }
+
     const fields = new Array();
 
     if (metadata.Genre && Array.isArray(metadata.Genre) && metadata.Genre.length > 0) {

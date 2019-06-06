@@ -56,6 +56,6 @@ export class PlexApp extends App {
       await configuration.slashCommands.provideSlashCommand(new PlexScanCommand(this));
       await configuration.slashCommands.provideSlashCommand(new PlexPlaylistsCommand(this));
       await configuration.slashCommands.provideSlashCommand(new PlexResourcesCommand(this));
-      // await configuration.slashCommands.provideSlashCommand(new PlexPlaybackCommand(this));
+      await configuration.slashCommands.provideSlashCommand(new PlexPlaybackCommand(this));
     }
 }

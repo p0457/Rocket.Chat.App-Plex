@@ -56,7 +56,7 @@ export default {
   },
   playback: {
     command: 'plex-playback',
-    usage: '`/plex-playback TODO:`',
-    description: 'Control playback on your Plex sessions',
+    usage: '`/plex-playback [play|pause|stop|rewind|skip-back|fast-forward|skip-forward] [SERVER NAME] [RESOURCE ID] (MEDIA ID)`',
+    description: 'Control playback on your Plex sessions (MEDIA ID only needed for play)',
   },
 };

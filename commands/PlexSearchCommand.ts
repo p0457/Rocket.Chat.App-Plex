@@ -22,11 +22,14 @@ export class PlexSearchCommand implements ISlashCommand {
       return;
     }
     const serverArg = args[0];
-    const typeArg = args[1].toLowerCase().trim();
+    let typeArg = args[1].toLowerCase().trim();
     // tslint:disable-next-line:max-line-length
     if (!typeArg) {
       await msgHelper.sendUsage(read, modify, context.getSender(), context.getRoom(), this.command, 'Type not provided!');
       return;
+    }
+    if (typeArg.toLowerCase() === 'tv') {
+      typeArg = 'show';
     }
     const type = getMediaTypes().find((mediaType) => {
       return mediaType.typeString === typeArg;

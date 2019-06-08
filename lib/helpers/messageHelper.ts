@@ -89,7 +89,7 @@ export async function sendTokenExpired(read: IRead, modify: IModify, user: IUser
       value: 'Token Expired!',
       link: 'https://app.plex.tv/desktop#!/account',
     },
-    text: 'Please login again using `/plex login [USERNAME] [PASSWORD]`',
+    text: 'Please login again using `/plex-login [USERNAME] [PASSWORD]`',
   }, read, modify, user, room);
 }
 

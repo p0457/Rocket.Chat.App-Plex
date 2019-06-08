@@ -22,7 +22,7 @@ export class PlexServerCommand implements ISlashCommand {
     const servers = await persistence.getUserServers(context.getSender());
     if (!servers) {
       // tslint:disable-next-line:max-line-length
-      await msgHelper.sendNotification('No servers stored! Try logging in again: `/plex login [USERNAME] [PASSWORD]`', read, modify, context.getSender(), context.getRoom());
+      await msgHelper.sendNotification('No servers stored! Try logging in again: `/plex-login [USERNAME] [PASSWORD]`', read, modify, context.getSender(), context.getRoom());
       return;
     }
     try {

@@ -62,12 +62,14 @@ export class PlexDevicesCommand implements ISlashCommand {
         });
         devicesJson = devicesJson.reverse();
         await msgHelper.sendDevices(devicesJson, read, modify, context.getSender(), context.getRoom());
+        return;
       } catch (e) {
         console.log('Failed to return Session results!', e);
         await msgHelper.sendNotification('Failed to return Session results!', read, modify, context.getSender(), context.getRoom());
       }
-    } else if (response.statusCode === 400) {
+    } else if (response.statusCode === 401) {
       await msgHelper.sendTokenExpired(read, modify, context.getSender(), context.getRoom(), persis);
+      return;
     }
   }
 }

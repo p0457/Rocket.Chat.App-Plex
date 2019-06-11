@@ -1,6 +1,8 @@
 # Plex
 Interact with your Plex Server.
 
+You can change the Name that the application posts as, as well as the icon.
+
 ## Getting Started
 Now that you have generated a blank default Rocket.Chat App, what are you supposed to do next?
 Start developing! Open up your favorite editor, our recommended one is Visual Studio code,

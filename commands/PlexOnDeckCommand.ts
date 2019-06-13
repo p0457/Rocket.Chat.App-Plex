@@ -23,7 +23,6 @@ export class PlexOnDeckCommand implements ISlashCommand {
 
     const responseContent = await request.getDataFromServer(serverArg, '/library/onDeck', context, read, modify, http, persis);
 
-    let resources = new Array();
     const persistence = new AppPersistence(persis, read.getPersistenceReader());
     const token = await persistence.getUserToken(context.getSender());
     if (!token) {
@@ -32,21 +31,7 @@ export class PlexOnDeckCommand implements ISlashCommand {
       return;
     }
 
-    const resourcesUrl = 'https://plex.tv/api/resources';
-    const headers = defaultHeaders;
-    headers['X-Plex-Token'] = token;
-    const resourcesResponse = await http.get(resourcesUrl, {
-      headers,
-      params: {
-        includeHttps: '1',
-        includeRelay: '1',
-      },
-    });
-
-    if (resourcesResponse && resourcesResponse.content && resourcesResponse.statusCode !== 200) {
-      const xmlResponse = resourcesResponse.content;
-      resources = request.parseResources(xmlResponse);
-    }
+    const resources = await request.getResources(true, context, read, modify, http, persis);
 
     try {
       const searchResultsJson = JSON.parse(responseContent.content);

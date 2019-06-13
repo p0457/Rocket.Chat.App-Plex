@@ -520,6 +520,11 @@ export async function getResources(ignoreOnFailed: boolean, context: SlashComman
             return connection.relay === true;
           });
         }
+        // Filter out browsers, since they don't do playback properly, apparently
+        appropriateConnections = appropriateConnections.filter((connection) => {
+          const connectionName = connection.name.toLowerCase();
+          return connectionName !== 'chrome' && connectionName !== 'edge' && connectionName !== 'firefox' && connectionName !== 'ie';
+        });
         const appropriateConnection = appropriateConnections[0];
         if (appropriateConnection) {
           resource.hasAppropriateConnection = true;

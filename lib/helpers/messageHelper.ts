@@ -284,7 +284,7 @@ export async function sendMediaMetadata(server, metadatas, query, isSessionsCall
     if (mediaType === 'episode' || mediaType === 'movie') {
       mediaType = 'video';
     }
-    if (resources && resources.length > 0 && isSessionsCall === false) {
+    if (resources && resources.length > 0) {
       const mediaId = metadata.ratingKey;
       resources.forEach((resource) => {
         if (resource.owned === true && resource.hasAppropriateConnection) {

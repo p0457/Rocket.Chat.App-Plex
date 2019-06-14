@@ -57,6 +57,8 @@ export class PlexCommand implements ISlashCommand {
 
     text += '\n*Media Types*\n' + mediaTypesText;
 
+    text += '\n\nThis application is not created by, affiliated with, or supported by Plex.';
+
     await msgHelper.sendNotificationSingleAttachment({
       collapsed: false,
       color: '#e4a00e',

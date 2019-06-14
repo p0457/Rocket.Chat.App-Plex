@@ -478,10 +478,10 @@ export async function sendMediaMetadata(server, metadatas, query, isSessionsCall
       text += '*Originally Added On *' + metadata.originallyAvailableAt + '\n';
     }
     if (metadata.tagline) {
-      text += '*Tagline: *' + metadata.tagline + '\n';
+      text += '\n>' + metadata.tagline + '\n';
     }
     if (metadata.summary) {
-      text += '\n*Summary: *' + metadata.summary;
+      text += '\n' + metadata.summary;
     }
 
     attachments.push({

@@ -511,23 +511,24 @@ export async function getResources(ignoreOnFailed: boolean, context: SlashComman
 
     if (Array.isArray(resources)) {
       resources.forEach((resource) => {
-        resource.hasAppropriateConnection = false;
-        let appropriateConnections = resource.connections.filter((connection) => {
-          return connection.local === false;
-        });
-        if (appropriateConnections.length > 1) {
-          appropriateConnections = appropriateConnections.filter((connection) => {
-            return connection.relay === true;
-          });
-        }
+        const resourceName = resource.name.toLowerCase();
         // Filter out browsers, since they don't do playback properly, apparently
-        appropriateConnections = appropriateConnections.filter((connection) => {
-          const connectionName = connection.name.toLowerCase();
-          return connectionName !== 'chrome' && connectionName !== 'edge' && connectionName !== 'firefox' && connectionName !== 'ie';
-        });
-        const appropriateConnection = appropriateConnections[0];
-        if (appropriateConnection) {
-          resource.hasAppropriateConnection = true;
+        if (resourceName !== 'chrome' && resourceName !== 'edge' && resourceName !== 'firefox' && resourceName !== 'ie') {
+          resource.hasAppropriateConnection = false;
+          let appropriateConnections = resource.connections.filter((connection) => {
+            return connection.local === false;
+          });
+          if (appropriateConnections.length > 1) {
+            appropriateConnections = appropriateConnections.filter((connection) => {
+              return connection.relay === true;
+            });
+          }
+          const appropriateConnection = appropriateConnections[0];
+          if (appropriateConnection) {
+            resource.hasAppropriateConnection = true;
+          }
+        } else {
+          resource.hasAppropriateConnection = false;
         }
       });
     }

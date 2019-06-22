@@ -92,7 +92,6 @@ export async function getAndSendServer(args: string[], read: IRead, modify: IMod
       }, read, modify, user, room);
       return;
     }
-
   }
 
   const persistence = new AppPersistence(persis, read.getPersistenceReader());

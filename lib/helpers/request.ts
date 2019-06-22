@@ -1,8 +1,128 @@
 import { IHttp, IModify, IPersistence, IRead } from '@rocket.chat/apps-engine/definition/accessors';
 import { SlashCommandContext } from '@rocket.chat/apps-engine/definition/slashcommands';
+import { IRoom } from '@rocket.chat/apps-engine/definition/rooms';
+import { IUser } from '@rocket.chat/apps-engine/definition/users';
 import { AppPersistence } from '../persistence';
 import defaultHeaders from './defaultHeaders';
 import * as msgHelper from './messageHelper';
+import { PlexDTO } from '../PlexDTO';
+
+export async function getServer(args: string[], read: IRead, modify: IModify, http: IHttp, persis: IPersistence, user: IUser, room: IRoom, slashCommand: string): Promise<PlexDTO> {
+  const result = new PlexDTO();
+
+  const [serverArg] = args;
+  if (!serverArg) {
+    result.item = {
+      _ServerArg: serverArg,
+    };
+    result.error = 'noserverid';
+    return result;
+  }
+  const persistence = new AppPersistence(persis, read.getPersistenceReader());
+  const servers = await persistence.getUserServers(user);
+  if (!servers) {
+    result.error = 'noservers';
+    return result;
+  }
+  try {
+    let serverChosen;
+    let serverFound = false;
+    const serversList = JSON.parse(servers);
+    if (!serversList || !Array.isArray(serversList)) {
+      result.error = 'nonefound';
+      return result;
+    }
+    serversList.forEach((server) => {
+      if (!serverFound && server.name.toLowerCase().indexOf(serverArg.toLowerCase()) !== -1) {
+        serverChosen = server;
+        serverFound = true;
+      }
+    });
+    result.item = {
+      _ServerArg: serverArg,
+      _ServerChosen: serverChosen,
+    };
+
+    if (serverFound && serverFound === true) {
+      return result;
+    } else {
+      result.error = 'nonefound';
+      return result;
+    }
+  } catch (e) {
+    result.error = 'failedsearch';
+    return result;
+  }
+}
+
+export async function getAndSendServer(args: string[], read: IRead, modify: IModify, http: IHttp, persis: IPersistence, user: IUser, room: IRoom, slashCommand: string): Promise<void> {
+  const serverResult = await getServer(args, read, modify, http, persis, user, room, slashCommand);
+
+  if (serverResult.hasError()) {
+    if (serverResult.error === 'noserverid') {
+      await msgHelper.sendUsage(read, modify, user, room, slashCommand, 'No server name provided!');
+      return;
+    }
+    if (serverResult.error === 'noservers') {
+      // tslint:disable-next-line:max-line-length
+      await msgHelper.sendNotification('No servers stored! Try logging in again: `/plex-login [USERNAME] [PASSWORD]`', read, modify, user, room);
+      return;
+    }
+    if (serverResult.error === 'failedsearch') {
+      await msgHelper.sendNotificationSingleAttachment({
+        collapsed: false,
+        color: '#e10000',
+        title: {
+          value: 'Failed to search for Server!',
+          link: 'https://app.plex.tv/desktop#!/account',
+        },
+        text: 'Error encountered when searching for server!',
+      }, read, modify, user, room);
+      return;
+    }
+    if (serverResult.error === 'nonefound') {
+      await msgHelper.sendNotificationSingleAttachment({
+        collapsed: false,
+        color: '#e10000',
+        title: {
+          value: 'No Servers found!',
+          link: 'https://app.plex.tv/desktop#!/account',
+        },
+        text: 'Could not find a server using the query `' + serverResult.item._ServerArg + '`!',
+      }, read, modify, user, room);
+      return;
+    }
+
+  }
+
+  const persistence = new AppPersistence(persis, read.getPersistenceReader());
+
+  const userThumbUrl = await persistence.getUserThumb(user);
+  await msgHelper.sendNotificationMultipleServerDetails([serverResult.item._ServerChosen], userThumbUrl, read, modify, user, room);
+}
+
+export async function getServers(read: IRead, modify: IModify, persis: IPersistence, user: IUser, room: IRoom): Promise<PlexDTO> {
+  const result = new PlexDTO();
+
+  const persistence = new AppPersistence(persis, read.getPersistenceReader());
+  const servers = await persistence.getUserServers(user);
+  if (!servers) {
+    result.error = 'noservers';
+    return result;
+  }
+  try {
+    const serversList = JSON.parse(servers);
+    if (serversList && Array.isArray(serversList)) {
+      result.item = serversList;
+    }
+  } catch (e) {
+    console.log('Failed to parse servers!', e);
+    result.error = 'Failed to parse servers!';
+    return result;
+  }
+
+  return result;
+}
 
 // tslint:disable-next-line:max-line-length
 export async function getDataFromServer(serverName: string, serverEndpoint: string, context: SlashCommandContext, read: IRead, modify: IModify, http: IHttp, persis: IPersistence, params?): Promise<any|undefined> {

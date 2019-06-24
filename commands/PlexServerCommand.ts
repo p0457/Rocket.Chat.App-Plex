@@ -1,9 +1,9 @@
 import { IHttp, IModify, IPersistence, IRead } from '@rocket.chat/apps-engine/definition/accessors';
-import { ISlashCommand, SlashCommandContext, ISlashCommandPreview, ISlashCommandPreviewItem, SlashCommandPreviewItemType } from '@rocket.chat/apps-engine/definition/slashcommands';
+import { ISlashCommand, ISlashCommandPreview, ISlashCommandPreviewItem, SlashCommandContext, SlashCommandPreviewItemType } from '@rocket.chat/apps-engine/definition/slashcommands';
 import * as msgHelper from '../lib/helpers/messageHelper';
+import { getAndSendServer, getServers } from '../lib/helpers/request';
 import { AppPersistence } from '../lib/persistence';
 import { PlexApp } from '../PlexApp';
-import { getAndSendServer, getServers } from '../lib/helpers/request';
 
 export class PlexServerCommand implements ISlashCommand {
   public command = 'plex-server';
@@ -22,7 +22,7 @@ export class PlexServerCommand implements ISlashCommand {
     const items = Array<ISlashCommandPreviewItem>();
 
     const query = context.getArguments().join(' ');
-    
+
     const serversResult = await getServers(read, modify, persis, context.getSender(), context.getRoom());
     if (serversResult.hasError()) {
       if (serversResult.error === 'noservers') {
@@ -58,9 +58,10 @@ export class PlexServerCommand implements ISlashCommand {
     return {
       i18nTitle: 'Results for',
       items,
-    }
+    };
   }
 
+  // tslint:disable-next-line:max-line-length
   public async executePreviewItem(item: ISlashCommandPreviewItem, context: SlashCommandContext, read: IRead, modify: IModify, http: IHttp, persis: IPersistence): Promise<void> {
     await getAndSendServer([item.id], read, modify, http, persis, context.getSender(), context.getRoom(), this.command);
     return;

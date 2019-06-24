@@ -51,7 +51,7 @@ export default {
   },
   resources: {
     command: 'plex-resources',
-    usage: '`/plex-resources',
+    usage: '`/plex-resources`',
     description: 'Shows the resources for your Plex Account',
   },
   playback: {

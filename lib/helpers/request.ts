@@ -1,13 +1,199 @@
 import { IHttp, IModify, IPersistence, IRead } from '@rocket.chat/apps-engine/definition/accessors';
-import { SlashCommandContext } from '@rocket.chat/apps-engine/definition/slashcommands';
 import { IRoom } from '@rocket.chat/apps-engine/definition/rooms';
+import { SlashCommandContext } from '@rocket.chat/apps-engine/definition/slashcommands';
 import { IUser } from '@rocket.chat/apps-engine/definition/users';
 import { AppPersistence } from '../persistence';
+import { PlexDTO } from '../PlexDTO';
 import defaultHeaders from './defaultHeaders';
 import * as msgHelper from './messageHelper';
-import { PlexDTO } from '../PlexDTO';
 
-export async function getServer(args: string[], read: IRead, modify: IModify, http: IHttp, persis: IPersistence, user: IUser, room: IRoom, slashCommand: string): Promise<PlexDTO> {
+export async function getAndSendScan(args: Array<string>, context: SlashCommandContext, read: IRead, modify: IModify, http: IHttp, persis: IPersistence, slashCommand: string): Promise<void> {
+  const [serverArg, libraryKey] = args;
+  if (!serverArg) {
+    await msgHelper.sendUsage(read, modify, context.getSender(), context.getRoom(), this.command, 'No server provided!');
+    return;
+  }
+  if (!libraryKey) {
+    await msgHelper.sendUsage(read, modify, context.getSender(), context.getRoom(), this.command, 'No library key provided!');
+    return;
+  }
+
+  const url = `/library/sections/${libraryKey.toLowerCase().trim()}/refresh`;
+
+  const responseContent = await getDataFromServer(serverArg, url, context, read, modify, http, persis);
+  if (responseContent.statusCode === 200) {
+    await msgHelper.sendNotificationSingleAttachment({
+      collapsed: true,
+      color: '#e4a00e',
+      title: {
+        value: `Started or queued scan for library key ${libraryKey}!`,
+      },
+    }, read, modify, context.getSender(), context.getRoom());
+  } else {
+    await msgHelper.sendNotification('Failed to return Scan response!', read, modify, context.getSender(), context.getRoom());
+  }
+}
+
+export async function getLibraries(args: Array<string>, context: SlashCommandContext, read: IRead, modify: IModify, http: IHttp, persis: IPersistence, slashCommand: string): Promise<PlexDTO> {
+  const result = new PlexDTO();
+
+  const [serverArg] = args;
+  if (!serverArg) {
+    result.error = 'noserver';
+    return result;
+  }
+
+  const responseContent = await getDataFromServer(serverArg, '/library/sections', context, read, modify, http, persis);
+
+  try {
+    const searchResultsJson = JSON.parse(responseContent.content);
+    if (searchResultsJson && searchResultsJson.MediaContainer && searchResultsJson.MediaContainer.size) {
+      const actualResults = searchResultsJson.MediaContainer.Directory;
+      if (actualResults) {
+        result.item = {
+          libraries: actualResults,
+          serverChosen: responseContent.serverChosen,
+        };
+        return result;
+      } else {
+        result.error = 'Failed to return Library results!';
+        return result;
+      }
+    } else {
+      result.error = 'Failed to return Library results!';
+      return result;
+    }
+  } catch (e) {
+    console.log('Failed to return Library results!', e);
+    result.error = 'Failed to return Library results!';
+    return result;
+  }
+}
+
+export async function getAndSendLibraries(args: Array<string>, context: SlashCommandContext, read: IRead, modify: IModify, http: IHttp, persis: IPersistence, slashCommand: string): Promise<void> {
+  const librariesResult = await getLibraries(args, context, read, modify, http, persis, slashCommand);
+
+  if (librariesResult.hasError()) {
+    if (librariesResult.error === 'noserver') {
+      await msgHelper.sendUsage(read, modify, context.getSender(), context.getRoom(), this.command, 'No server provided!');
+      return;
+    }
+
+    await msgHelper.sendNotification(librariesResult.error, read, modify, context.getSender(), context.getRoom());
+    return;
+  }
+
+  // tslint:disable-next-line:max-line-length
+  await msgHelper.sendLibraries(librariesResult.item.libraries, librariesResult.item.serverChosen, read, modify, context.getSender(), context.getRoom());
+  return;
+}
+
+export async function getAndSendSessions(args: Array<string>, context: SlashCommandContext, read: IRead, modify: IModify, http: IHttp, persis: IPersistence, slashCommand: string): Promise<void> {
+  const [serverArg] = args;
+  if (!serverArg) {
+    await msgHelper.sendUsage(read, modify, context.getSender(), context.getRoom(), this.command, 'No server provided!');
+    return;
+  }
+
+  const responseContent = await getDataFromServer(serverArg, '/status/sessions', context, read, modify, http, persis);
+  let resources = new Array();
+
+  try {
+    const searchResultsJson = JSON.parse(responseContent.content);
+    if (searchResultsJson && searchResultsJson.MediaContainer && searchResultsJson.MediaContainer.size) {
+      const actualResults = searchResultsJson.MediaContainer.Metadata;
+      resources = await getResources(true, context, read, modify, http, persis);
+      if (actualResults && actualResults.length > 0) {
+        // tslint:disable-next-line:max-line-length
+        await msgHelper.sendMediaMetadata(responseContent.serverChosen, actualResults, serverArg + ' sessions', true, resources, read, modify, context.getSender(), context.getRoom());
+      } else {
+        // tslint:disable-next-line:max-line-length
+        await msgHelper.sendMediaMetadata(responseContent.serverChosen, [], serverArg + ' sessions', true, resources, read, modify, context.getSender(), context.getRoom());
+      }
+    } else {
+      // tslint:disable-next-line:max-line-length
+      await msgHelper.sendMediaMetadata(responseContent.serverChosen, [], serverArg + ' sessions', true, resources, read, modify, context.getSender(), context.getRoom());
+    }
+  } catch (e) {
+    console.log('Failed to return Session results!', e);
+    await msgHelper.sendNotification('Failed to return Session results!', read, modify, context.getSender(), context.getRoom());
+  }
+}
+
+export async function getAndSendPlaylists(args: Array<string>, context: SlashCommandContext, read: IRead, modify: IModify, http: IHttp, persis: IPersistence, slashCommand: string): Promise<void> {
+  const [serverArg] = args;
+  if (!serverArg) {
+    await msgHelper.sendUsage(read, modify, context.getSender(), context.getRoom(), this.command, 'No server provided!');
+    return;
+  }
+
+  const params = {};
+
+  const responseContent = await getDataFromServer(serverArg, '/playlists', context, read, modify, http, persis, params);
+
+  try {
+    const queryDisplay = serverArg + ' playlists';
+    const searchResultsJson = JSON.parse(responseContent.content);
+    if (searchResultsJson && searchResultsJson.MediaContainer && searchResultsJson.MediaContainer.size) {
+      const actualResults = searchResultsJson.MediaContainer.Metadata;
+      if (actualResults && actualResults.length > 0) {
+        // tslint:disable-next-line:max-line-length
+        await msgHelper.sendPlaylists(responseContent.serverChosen, actualResults, queryDisplay, read, modify, context.getSender(), context.getRoom());
+      } else {
+        // tslint:disable-next-line:max-line-length
+        await msgHelper.sendPlaylists(responseContent.serverChosen, [], queryDisplay, read, modify, context.getSender(), context.getRoom());
+      }
+    } else {
+      // tslint:disable-next-line:max-line-length
+      await msgHelper.sendPlaylists(responseContent.serverChosen, [], queryDisplay, read, modify, context.getSender(), context.getRoom());
+    }
+  } catch (e) {
+    console.log('Failed to return playlists!', e);
+    await msgHelper.sendNotification('Failed to return playlists!', read, modify, context.getSender(), context.getRoom());
+  }
+}
+
+export async function getAndSendOnDeck(args: Array<string>, context: SlashCommandContext, read: IRead, modify: IModify, http: IHttp, persis: IPersistence, slashCommand: string): Promise<void> {
+  const [serverArg] = args;
+  if (!serverArg) {
+    await msgHelper.sendUsage(read, modify, context.getSender(), context.getRoom(), this.command, 'No server provided!');
+    return;
+  }
+
+  const responseContent = await getDataFromServer(serverArg, '/library/onDeck', context, read, modify, http, persis);
+
+  const persistence = new AppPersistence(persis, read.getPersistenceReader());
+  const token = await persistence.getUserToken(context.getSender());
+  if (!token) {
+    // tslint:disable-next-line:max-line-length
+    await msgHelper.sendNotification('No token detected! Please login first using `/plex-login [USERNAME] [PASSWORD]`', read, modify, context.getSender(), context.getRoom());
+    return;
+  }
+
+  const resources = await getResources(true, context, read, modify, http, persis);
+
+  try {
+    const searchResultsJson = JSON.parse(responseContent.content);
+    if (searchResultsJson && searchResultsJson.MediaContainer && searchResultsJson.MediaContainer.size) {
+      const actualResults = searchResultsJson.MediaContainer.Metadata;
+      if (actualResults && actualResults.length > 0) {
+        // tslint:disable-next-line:max-line-length
+        await msgHelper.sendMediaMetadata(responseContent.serverChosen, actualResults, serverArg + ' ondeck', false, resources, read, modify, context.getSender(), context.getRoom());
+      } else {
+        // tslint:disable-next-line:max-line-length
+        await msgHelper.sendMediaMetadata(responseContent.serverChosen, [], serverArg + ' ondeck', false, resources, read, modify, context.getSender(), context.getRoom());
+      }
+    } else {
+      // tslint:disable-next-line:max-line-length
+      await msgHelper.sendMediaMetadata(responseContent.serverChosen, [], serverArg + ' ondeck', false, resources, read, modify, context.getSender(), context.getRoom());
+    }
+  } catch (e) {
+    console.log('Failed to return On-Deck results!', e);
+    await msgHelper.sendNotification('Failed to return On-Deck results!', read, modify, context.getSender(), context.getRoom());
+  }
+}
+
+export async function getServer(args: Array<string>, read: IRead, modify: IModify, http: IHttp, persis: IPersistence, user: IUser, room: IRoom, slashCommand: string): Promise<PlexDTO> {
   const result = new PlexDTO();
 
   const [serverArg] = args;
@@ -55,7 +241,7 @@ export async function getServer(args: string[], read: IRead, modify: IModify, ht
   }
 }
 
-export async function getAndSendServer(args: string[], read: IRead, modify: IModify, http: IHttp, persis: IPersistence, user: IUser, room: IRoom, slashCommand: string): Promise<void> {
+export async function getAndSendServer(args: Array<string>, read: IRead, modify: IModify, http: IHttp, persis: IPersistence, user: IUser, room: IRoom, slashCommand: string): Promise<void> {
   const serverResult = await getServer(args, read, modify, http, persis, user, room, slashCommand);
 
   if (serverResult.hasError()) {

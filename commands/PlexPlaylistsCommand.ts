@@ -39,7 +39,7 @@ export class PlexPlaylistsCommand implements ISlashCommand {
 
     const servers = serversResult.item;
     servers.forEach((server) => {
-      if (!query || String(server.name).toLowerCase().indexOf(query) !== -1) {
+      if (!query || String(server.name).toLowerCase().indexOf(query.toLowerCase().trim()) !== -1) {
         items.push({
           id: server.name,
           type: SlashCommandPreviewItemType.TEXT,

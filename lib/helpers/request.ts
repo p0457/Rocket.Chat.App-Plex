@@ -166,7 +166,7 @@ export async function getAndSendOnDeck(args: Array<string>, context: SlashComman
   const token = await persistence.getUserToken(context.getSender());
   if (!token) {
     // tslint:disable-next-line:max-line-length
-    await msgHelper.sendNotification('No token detected! Please login first using `/plex-login [USERNAME] [PASSWORD]`', read, modify, context.getSender(), context.getRoom());
+    await msgHelper.sendNotification('No token detected! Please login first using `/plex-login`', read, modify, context.getSender(), context.getRoom());
     return;
   }
 
@@ -251,7 +251,7 @@ export async function getAndSendServer(args: Array<string>, read: IRead, modify:
     }
     if (serverResult.error === 'noservers') {
       // tslint:disable-next-line:max-line-length
-      await msgHelper.sendNotification('No servers stored! Try logging in again: `/plex-login [USERNAME] [PASSWORD]`', read, modify, user, room);
+      await msgHelper.sendNotification('No servers stored! Try logging in again: `/plex-login`', read, modify, user, room);
       return;
     }
     if (serverResult.error === 'failedsearch') {
@@ -316,14 +316,14 @@ export async function getDataFromServer(serverName: string, serverEndpoint: stri
   const token = await persistence.getUserToken(context.getSender());
   if (!token) {
     // tslint:disable-next-line:max-line-length
-    await msgHelper.sendNotification('No token detected! Please login first using `/plex-login [USERNAME] [PASSWORD]`', read, modify, context.getSender(), context.getRoom());
+    await msgHelper.sendNotification('No token detected! Please login first using `/plex-login`', read, modify, context.getSender(), context.getRoom());
     return;
   }
 
   const servers = await persistence.getUserServers(context.getSender());
   if (!servers) {
     // tslint:disable-next-line:max-line-length
-    await msgHelper.sendNotification('No servers stored! Try logging in again: `/plex-login [USERNAME] [PASSWORD]`', read, modify, context.getSender(), context.getRoom());
+    await msgHelper.sendNotification('No servers stored! Try logging in again: `/plex-login`', read, modify, context.getSender(), context.getRoom());
     return;
   }
   try {
@@ -789,7 +789,7 @@ export async function getResources(ignoreOnFailed: boolean, context: SlashComman
   const token = await persistence.getUserToken(context.getSender());
   if (!token) {
     // tslint:disable-next-line:max-line-length
-    await msgHelper.sendNotification('No token detected! Please login first using `/plex-login [USERNAME] [PASSWORD]`', read, modify, context.getSender(), context.getRoom());
+    await msgHelper.sendNotification('No token detected! Please login first using `/plex-login`', read, modify, context.getSender(), context.getRoom());
     return;
   }
   const url = 'https://plex.tv/api/resources';

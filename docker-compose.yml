@@ -3,6 +3,6 @@
 version: '1'
 
 services:
-  rocketchatapp_jitsi:
+  rocketchatapp_plex:
     image: rocketchatapp_plex:latest
     container_name: rocketchatapp_plex

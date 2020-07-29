@@ -8,9 +8,10 @@ import { secondsToString } from './timeConverter';
 import usage from './usage';
 
 export async function sendNotification(text: string, read: IRead, modify: IModify, user: IUser, room: IRoom): Promise<void> {
-  const icon = await read.getEnvironmentReader().getSettings().getValueById('plex_icon');
-  const username = await read.getEnvironmentReader().getSettings().getValueById('plex_name');
-  const sender = await read.getUserReader().getById('rocket.cat');
+  const icon = await read.getEnvironmentReader().getSettings().getValueById('icon');
+  const username = await read.getEnvironmentReader().getSettings().getValueById('name');
+  const senderName = await read.getEnvironmentReader().getSettings().getValueById('sender');
+  const sender = await read.getUserReader().getById(senderName);
 
   modify.getNotifier().notifyUser(user, modify.getCreator().startMessage({
       sender,
@@ -23,9 +24,10 @@ export async function sendNotification(text: string, read: IRead, modify: IModif
 }
 
 export async function sendNotificationSingleAttachment(attachment: IMessageAttachment, read: IRead, modify: IModify, user: IUser, room: IRoom): Promise<void> {
-  const icon = await read.getEnvironmentReader().getSettings().getValueById('plex_icon');
-  const username = await read.getEnvironmentReader().getSettings().getValueById('plex_name');
-  const sender = await read.getUserReader().getById('rocket.cat');
+  const icon = await read.getEnvironmentReader().getSettings().getValueById('icon');
+  const username = await read.getEnvironmentReader().getSettings().getValueById('name');
+  const senderName = await read.getEnvironmentReader().getSettings().getValueById('sender');
+  const sender = await read.getUserReader().getById(senderName);
 
   modify.getNotifier().notifyUser(user, modify.getCreator().startMessage({
       sender,
@@ -38,9 +40,10 @@ export async function sendNotificationSingleAttachment(attachment: IMessageAttac
 }
 
 export async function sendNotificationMultipleAttachments(attachments: Array<IMessageAttachment>, read: IRead, modify: IModify, user: IUser, room: IRoom): Promise<void> {
-  const icon = await read.getEnvironmentReader().getSettings().getValueById('plex_icon');
-  const username = await read.getEnvironmentReader().getSettings().getValueById('plex_name');
-  const sender = await read.getUserReader().getById('rocket.cat');
+  const icon = await read.getEnvironmentReader().getSettings().getValueById('icon');
+  const username = await read.getEnvironmentReader().getSettings().getValueById('name');
+  const senderName = await read.getEnvironmentReader().getSettings().getValueById('sender');
+  const sender = await read.getUserReader().getById(senderName);
 
   modify.getNotifier().notifyUser(user, modify.getCreator().startMessage({
       sender,
@@ -89,11 +92,12 @@ export async function sendTokenExpired(read: IRead, modify: IModify, user: IUser
       value: 'Token Expired!',
       link: 'https://app.plex.tv/desktop#!/account',
     },
-    text: 'Please login again using `/plex-login [USERNAME] [PASSWORD]`',
+    text: 'Please login again using `/plex-login`',
   }, read, modify, user, room);
 }
 
 export async function sendNotificationMultipleServerDetails(servers, userThumbUrl: string | undefined, read: IRead, modify: IModify, user: IUser, room: IRoom): Promise<void> {
+  const anon_user_avatar = await read.getEnvironmentReader().getSettings().getValueById('anon_user_avatar');
   const attachments = new Array<IMessageAttachment>();
 
   // tslint:disable-next-line:prefer-for-of
@@ -109,7 +113,7 @@ export async function sendNotificationMultipleServerDetails(servers, userThumbUr
     let text = '*v' + server.version + '*\n*Owner: *';
     text += (server.owned === true) ? 'You' : server.sourceTitle;
     // tslint:disable-next-line:max-line-length
-    const userThumbUrlActual = (server.owned === true) ? userThumbUrl : 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Antu_im-invisible-user.svg/512px-Antu_im-invisible-user.svg.png';
+    const userThumbUrlActual = (server.owned === true) ? userThumbUrl : anon_user_avatar;
     const serverAddress = server.scheme + '://' + server.address + ':' + server.port;
     const serverLink = 'https://app.plex.tv/desktop#!/server/' + server.machineId;
 

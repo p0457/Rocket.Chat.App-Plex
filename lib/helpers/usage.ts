@@ -1,7 +1,7 @@
 export default {
   login: {
     command: 'plex-login',
-    usage: '`/plex-login [USERNAME] [PASSWORD]`',
+    usage: '`/plex-login`',
     description: 'Login to Plex',
   },
   servers: {

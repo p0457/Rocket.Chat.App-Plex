@@ -43,7 +43,7 @@ export class PlexScanCommand implements ISlashCommand {
       }
 
       librariesResult.item.libraries.forEach((library) => {
-        if (!libraryArg || String(library.title).toLowerCase().indexOf(libraryArg) !== -1) {
+        if (!libraryArg || String(library.title).toLowerCase().indexOf(libraryArg.toLowerCase().trim()) !== -1) {
           items.push({
             id: `${librariesResult.item.serverChosen.name}|${library.key}`,
             type: SlashCommandPreviewItemType.TEXT,

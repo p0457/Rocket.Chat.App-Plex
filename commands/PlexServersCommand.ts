@@ -20,7 +20,7 @@ export class PlexServersCommand implements ISlashCommand {
     if (serversResult.hasError()) {
       if (serversResult.error === 'noservers') {
         // tslint:disable-next-line:max-line-length
-        await msgHelper.sendNotification('No servers stored! Try logging in again: `/plex-login [USERNAME] [PASSWORD]`', read, modify, context.getSender(), context.getRoom());
+        await msgHelper.sendNotification('No servers stored! Try logging in again: `/plex-login`', read, modify, context.getSender(), context.getRoom());
         return;
       }
       await msgHelper.sendNotificationSingleAttachment({
@@ -30,7 +30,7 @@ export class PlexServersCommand implements ISlashCommand {
           value: 'No Servers stored!',
           link: 'https://app.plex.tv/desktop#!/account',
         },
-        text: 'Try logging in again: `/plex-login [USERNAME] [PASSWORD]`',
+        text: 'Try logging in again: `/plex-login`',
       }, read, modify, context.getSender(), context.getRoom());
     }
 
